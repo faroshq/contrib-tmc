@@ -22,6 +22,22 @@ TOOLS_GOBIN_DIR := $(abspath $(TOOLS_DIR))
 GOBIN_DIR=$(abspath ./bin)
 PATH := $(GOBIN_DIR):$(TOOLS_GOBIN_DIR):$(PATH)
 
+ARCH := $(shell go env GOARCH)
+OS := $(shell go env GOOS)
+
+LDFLAGS := \
+	-extldflags '-static'
+
+ldflags:
+	@echo $(LDFLAGS)
+
+.PHONY: require-%
+require-%:
+	@if ! command -v $* 1> /dev/null 2>&1; then echo "$* not found in ${PATH}"; exit 1; fi
+
+all: build
+.PHONY: all
+
 # Detect the path used for the install target
 ifeq (,$(shell go env GOBIN))
 INSTALL_GOBIN=$(shell go env GOPATH)/bin
@@ -49,7 +65,7 @@ CODE_GENERATOR := $(TOOLS_GOBIN_DIR)/$(CODE_GENERATOR_BIN)-$(CODE_GENERATOR_VER)
 export CODE_GENERATOR # so hack scripts can use it
 
 KCP_APIGEN_VER := v0.0.0-20230611113342-27b3b359e28e # TODO: Replace once fixed upstream
-KCP_APIGEN_BIN := kcp-apigen
+KCP_APIGEN_BIN := apigen
 KCP_APIGEN_GEN := $(TOOLS_DIR)/$(KCP_APIGEN_BIN)-$(KCP_APIGEN_VER)
 export KCP_APIGEN_GEN # so hack scripts can use it
 
@@ -101,3 +117,11 @@ verify-codegen:
 .PHONY: imports
 imports: $(OPENSHIFT_GOIMPORTS)
 	$(OPENSHIFT_GOIMPORTS) -m github.com/faroshq/tmc
+
+all: build
+.PHONY: all
+
+build: WHAT ?= ./cmd/...
+build: require-jq require-go require-git
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build $(BUILDFLAGS) -ldflags="$(LDFLAGS)" -o bin $(WHAT)
+.PHONY: build
