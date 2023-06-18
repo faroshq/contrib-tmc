@@ -125,3 +125,11 @@ build: WHAT ?= ./cmd/...
 build: require-jq require-go require-git
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build $(BUILDFLAGS) -ldflags="$(LDFLAGS)" -o bin $(WHAT)
 .PHONY: build
+
+test:
+	go test -v -failfast `go list ./... | egrep -v /test/` -coverprofile=profile.cov
+.PHONY: test
+
+generate: codegen crds
+	go generate ./...
+.PHONY: generate

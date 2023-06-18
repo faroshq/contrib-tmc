@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -42,7 +43,6 @@ import (
 	tmcfeatures "github.com/faroshq/tmc/tmc/features"
 	tmcserver "github.com/faroshq/tmc/tmc/server"
 	"github.com/faroshq/tmc/tmc/server/options"
-	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
 )
 
 func main() {

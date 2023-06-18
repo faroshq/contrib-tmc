@@ -19,10 +19,11 @@ package options
 import (
 	"io"
 
+	kcpcoreoptions "github.com/kcp-dev/kcp/cmd/kcp-core/options"
+
 	cliflag "k8s.io/component-base/cli/flag"
 
 	tmcserveroptions "github.com/faroshq/tmc/tmc/server/options"
-	kcpcoreoptions "github.com/kcp-dev/kcp/cmd/kcp-core/options"
 )
 
 type Options struct {
