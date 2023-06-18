@@ -3,6 +3,7 @@ module github.com/faroshq/tmc
 go 1.19
 
 require (
+	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/aojea/rwconn v0.1.1
 	github.com/coredns/caddy v1.1.1
 	github.com/coredns/coredns v1.9.3
@@ -14,6 +15,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.4
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/miekg/dns v1.1.50
+	github.com/muesli/reflow v0.1.0
 	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.2
 	k8s.io/api v0.27.2
@@ -28,6 +30,7 @@ require (
 )
 
 require (
+	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr v1.4.10 // indirect
 	github.com/apparentlymart/go-cidr v1.1.0 // indirect
@@ -68,9 +71,11 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
+	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
+	github.com/moby/term v0.0.0-20220808134915-39b0c02b01ae // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -184,7 +189,7 @@ replace (
 	k8s.io/cloud-provider => github.com/kcp-dev/kubernetes/staging/src/k8s.io/cloud-provider v0.0.0-20230526104423-c790f4246d25
 	k8s.io/cluster-bootstrap => github.com/kcp-dev/kubernetes/staging/src/k8s.io/cluster-bootstrap v0.0.0-20230526104423-c790f4246d25
 	k8s.io/code-generator => github.com/kcp-dev/kubernetes/staging/src/k8s.io/code-generator v0.0.0-20230526104423-c790f4246d25
-	k8s.io/component-base => github.com/kcp-dev/kubernetes/staging/src/k8s.io/component-base v0.0.0-20230526104423-c790f4246d25
+	k8s.io/component-base => github.com/kcp-dev/kubernetes/staging/src/k8s.io/component-base v0.0.0-20230427150721-f5a9bfdd1834
 	k8s.io/component-helpers => github.com/kcp-dev/kubernetes/staging/src/k8s.io/component-helpers v0.0.0-20230526104423-c790f4246d25
 	k8s.io/controller-manager => github.com/kcp-dev/kubernetes/staging/src/k8s.io/controller-manager v0.0.0-20230526104423-c790f4246d25
 	k8s.io/cri-api => github.com/kcp-dev/kubernetes/staging/src/k8s.io/cri-api v0.0.0-20230526104423-c790f4246d25

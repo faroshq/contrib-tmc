@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
+	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/controllers/apireconciler"
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/transformations"
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/upsyncer"
@@ -50,6 +51,7 @@ func BuildVirtualWorkspace(
 	kubeClusterClient kcpkubernetesclientset.ClusterInterface,
 	dynamicClusterClient kcpdynamic.ClusterInterface,
 	cachedKCPInformers kcpinformers.SharedInformerFactory,
+	cachedTMCInformers tmcinformers.SharedInformerFactory,
 ) []rootapiserver.NamedVirtualWorkspace {
 	if !strings.HasSuffix(rootPathPrefix, "/") {
 		rootPathPrefix += "/"
@@ -58,7 +60,7 @@ func BuildVirtualWorkspace(
 	// Setup the APIReconciler indexes to share between both virtualworkspaces.
 	indexers.AddIfNotPresentOrDie(
 		// TODO(FGI) a tmcinformer is needed instead
-		cachedKCPInformers.Workload().V1alpha1().SyncTargets().Informer().GetIndexer(),
+		cachedTMCInformers.Workload().V1alpha1().SyncTargets().Informer().GetIndexer(),
 		cache.Indexers{
 			apireconciler.IndexSyncTargetsByExport: apireconciler.IndexSyncTargetsByExports,
 		},
@@ -74,6 +76,7 @@ func BuildVirtualWorkspace(
 		kubeClusterClient:    kubeClusterClient,
 		dynamicClusterClient: dynamicClusterClient,
 		cachedKCPInformers:   cachedKCPInformers,
+		cachedTMCInformers:   cachedTMCInformers,
 		rootPathPrefix:       rootPathPrefix,
 	}
 

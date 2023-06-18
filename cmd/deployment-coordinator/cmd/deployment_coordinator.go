@@ -32,8 +32,8 @@ import (
 	logsapiv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/version"
 
+	"github.com/faroshq/tmc/cmd/deployment-coordinator/options"
 	"github.com/faroshq/tmc/pkg/reconciler/coordination/deployment"
-	"github.com/faroshq/tmc/tmc/cmd/deployment-coordinator/options"
 )
 
 const numThreads = 2

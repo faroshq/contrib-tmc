@@ -19,6 +19,7 @@ package server
 import (
 	"context"
 	_ "net/http/pprof"
+	"time"
 
 	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
@@ -31,6 +32,8 @@ import (
 
 	configrootcompute "github.com/faroshq/tmc/config/rootcompute"
 )
+
+const resyncPeriod = 10 * time.Hour
 
 type Server struct {
 	CompletedConfig
@@ -46,15 +49,14 @@ func NewServer(c CompletedConfig) (*Server, error) {
 
 	s := &Server{
 		CompletedConfig: c,
-
-		Core: core,
+		Core:            core,
 	}
 
 	return s, nil
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	logger := klog.FromContext(ctx).WithValues("component", "kcp")
+	logger := klog.FromContext(ctx).WithValues("component", "tmc")
 	ctx = klog.NewContext(ctx, logger)
 
 	controllerConfig := rest.CopyConfig(s.Core.IdentityConfig)

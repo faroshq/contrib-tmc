@@ -24,6 +24,7 @@ import (
 
 	"k8s.io/client-go/rest"
 
+	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
 	synceroptions "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/options"
 )
 
@@ -55,8 +56,9 @@ func (o *Options) NewVirtualWorkspaces(
 	rootPathPrefix string,
 	shardExternalURL func() string,
 	cachedKcpInformers kcpinformers.SharedInformerFactory,
+	cachedTmcInformers tmcinformers.SharedInformerFactory,
 ) ([]rootapiserver.NamedVirtualWorkspace, error) {
-	syncer, err := o.Syncer.NewVirtualWorkspaces(rootPathPrefix, shardExternalURL, config, cachedKcpInformers)
+	syncer, err := o.Syncer.NewVirtualWorkspaces(rootPathPrefix, shardExternalURL, config, cachedKcpInformers, cachedTmcInformers)
 	if err != nil {
 		return nil, err
 	}

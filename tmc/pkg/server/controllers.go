@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	tmcclientset "github.com/faroshq/tmc/client/clientset/versioned/cluster"
 	schedulinglocationstatus "github.com/faroshq/tmc/pkg/reconciler/scheduling/location"
 	schedulingplacement "github.com/faroshq/tmc/pkg/reconciler/scheduling/placement"
 	workloadsapiexport "github.com/faroshq/tmc/pkg/reconciler/workload/apiexport"
@@ -61,10 +62,10 @@ func (s *Server) installWorkloadResourceScheduler(ctx context.Context, config *r
 	resourceScheduler, err := workloadresource.NewController(
 		dynamicClusterClient,
 		s.Core.DiscoveringDynamicSharedInformerFactory,
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Core.CacheKcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		s.CacheTmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
 		s.Core.KubeSharedInformerFactory.Core().V1().Namespaces(),
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
 	)
 	if err != nil {
 		return err
@@ -127,9 +128,15 @@ func (s *Server) installSyncTargetHeartbeatController(ctx context.Context, confi
 		return err
 	}
 
+	tmcClusterClient, err := tmcclientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c, err := heartbeat.NewController(
 		kcpClusterClient,
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		tmcClusterClient,
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
 		s.Options.Controllers.SyncTargetHeartbeat.HeartbeatThreshold,
 	)
 	if err != nil {
@@ -150,7 +157,7 @@ func (s *Server) installSyncTargetHeartbeatController(ctx context.Context, confi
 }
 
 func (s *Server) installSchedulingLocationStatusController(ctx context.Context, config *rest.Config) error {
-	controllerName := "kcp-scheduling-location-status-controller"
+	controllerName := "kcp-tmc-scheduling-location-status-controller"
 	config = rest.CopyConfig(config)
 	config = rest.AddUserAgent(config, controllerName)
 
@@ -159,10 +166,16 @@ func (s *Server) installSchedulingLocationStatusController(ctx context.Context, 
 		return err
 	}
 
+	tmcClusterClient, err := tmcclientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c, err := schedulinglocationstatus.NewController(
 		kcpClusterClient,
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		tmcClusterClient,
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
 	)
 	if err != nil {
 		return err
@@ -192,7 +205,7 @@ func (s *Server) installWorkloadNamespaceScheduler(ctx context.Context, config *
 	c, err := workloadnamespace.NewController(
 		kubeClusterClient,
 		s.Core.KubeSharedInformerFactory.Core().V1().Namespaces(),
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
 	)
 	if err != nil {
 		return err
@@ -223,14 +236,20 @@ func (s *Server) installWorkloadPlacementScheduler(ctx context.Context, config *
 		return err
 	}
 
+	tmcClusterClient, err := tmcclientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c, err := workloadplacement.NewController(
 		kcpClusterClient,
+		tmcClusterClient,
 		s.Core.KcpSharedInformerFactory.Core().V1alpha1().LogicalClusters(),
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.Core.CacheKcpSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Core.CacheKcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+		s.CacheTmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		s.CacheTmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
 		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIBindings(),
 	)
 	if err != nil {
@@ -258,12 +277,18 @@ func (s *Server) installSchedulingPlacementController(ctx context.Context, confi
 		return err
 	}
 
+	tmcClusterClient, err := tmcclientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c, err := schedulingplacement.NewController(
 		kcpClusterClient,
+		tmcClusterClient,
 		s.Core.KubeSharedInformerFactory.Core().V1().Namespaces(),
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.Core.CacheKcpSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+		s.CacheTmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
 	)
 	if err != nil {
 		return err
@@ -295,7 +320,7 @@ func (s *Server) installWorkloadAPIExportController(ctx context.Context, config 
 		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
 		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
 		s.Core.KcpSharedInformerFactory.Apiresource().V1alpha1().NegotiatedAPIResources(),
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
 	)
 	if err != nil {
 		return err
@@ -322,10 +347,16 @@ func (s *Server) installWorkloadDefaultLocationController(ctx context.Context, c
 		return err
 	}
 
+	tmcClusterClient, err := tmcclientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c, err := workloadsdefaultlocation.NewController(
 		kcpClusterClient,
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Core.KcpSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+		tmcClusterClient,
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
 	)
 	if err != nil {
 		return err
@@ -352,9 +383,15 @@ func (s *Server) installWorkloadSyncTargetExportController(ctx context.Context, 
 		return err
 	}
 
+	tmcClusterClient, err := tmcclientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c, err := synctargetexports.NewController(
 		kcpClusterClient,
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		tmcClusterClient,
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
 		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
 		s.Core.CacheKcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
 		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
@@ -386,9 +423,15 @@ func (s *Server) installSyncTargetController(ctx context.Context, config *rest.C
 		return err
 	}
 
+	tmcClusterClient, err := tmcclientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	c := synctargetcontroller.NewController(
 		kcpClusterClient,
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		tmcClusterClient,
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
 		s.Core.KcpSharedInformerFactory.Core().V1alpha1().Shards(),
 		s.Core.CacheKcpSharedInformerFactory.Core().V1alpha1().Shards(),
 	)
@@ -474,7 +517,7 @@ func (s *Server) installWorkloadReplicateLogicalClusterControllers(ctx context.C
 	c := workloadreplicatelogicalcluster.NewController(
 		kcpClusterClient,
 		s.Core.KcpSharedInformerFactory.Core().V1alpha1().LogicalClusters(),
-		s.Core.KcpSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
 	)
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadreplicatelogicalcluster.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {

@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/client-go/rest"
 
+	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/builder"
 )
 
@@ -54,6 +55,7 @@ func (o *Syncer) NewVirtualWorkspaces(
 	shardExternalURL func() string,
 	config *rest.Config,
 	cachedKCPInformers kcpinformers.SharedInformerFactory,
+	cachedTMCInformers tmcinformers.SharedInformerFactory,
 ) (workspaces []rootapiserver.NamedVirtualWorkspace, err error) {
 	config = rest.AddUserAgent(rest.CopyConfig(config), "syncer-virtual-workspace")
 	kubeClusterClient, err := kcpkubernetesclientset.NewForConfig(config)
@@ -65,5 +67,5 @@ func (o *Syncer) NewVirtualWorkspaces(
 		return nil, err
 	}
 
-	return builder.BuildVirtualWorkspace(rootPathPrefix, shardExternalURL, kubeClusterClient, dynamicClusterClient, cachedKCPInformers), nil
+	return builder.BuildVirtualWorkspace(rootPathPrefix, shardExternalURL, kubeClusterClient, dynamicClusterClient, cachedKCPInformers, cachedTMCInformers), nil
 }

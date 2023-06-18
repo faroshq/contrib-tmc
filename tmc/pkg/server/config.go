@@ -25,6 +25,8 @@ import (
 
 	"k8s.io/client-go/rest"
 
+	tmcclientset "github.com/faroshq/tmc/client/clientset/versioned/cluster"
+	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
 	"github.com/faroshq/tmc/tmc/pkg/server/options"
 )
 
@@ -37,6 +39,8 @@ type Config struct {
 }
 
 type ExtraConfig struct {
+	TmcSharedInformerFactory      tmcinformers.SharedInformerFactory
+	CacheTmcSharedInformerFactory tmcinformers.SharedInformerFactory
 }
 
 type completedConfig struct {
@@ -72,12 +76,43 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		return nil, err
 	}
 
+	informerConfig := rest.CopyConfig(core.GenericConfig.LoopbackClientConfig)
+	informerConfig.UserAgent = "tmc-informers"
+	informerKcpClient, err := tmcclientset.NewForConfig(informerConfig)
+	if err != nil {
+		return nil, err
+	}
+	tmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
+		informerKcpClient,
+		resyncPeriod,
+	)
+
+	cacheClientConfig, err := core.Options.Cache.Client.RestConfig(rest.CopyConfig(core.GenericConfig.LoopbackClientConfig))
+	if err != nil {
+		return nil, err
+	}
+	cacheKcpClusterClient, err := tmcclientset.NewForConfig(cacheClientConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheTmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
+		cacheKcpClusterClient,
+		resyncPeriod,
+	)
+
 	// add tmc virtual workspaces
 	if opts.Core.Virtual.Enabled {
 		virtualWorkspacesConfig := rest.CopyConfig(core.GenericConfig.LoopbackClientConfig)
 		virtualWorkspacesConfig = rest.AddUserAgent(virtualWorkspacesConfig, "virtual-workspaces")
 
-		tmcVWs, err := opts.TmcVirtualWorkspaces.NewVirtualWorkspaces(virtualWorkspacesConfig, virtualcommandoptions.DefaultRootPathPrefix, core.ShardExternalURL, core.CacheKcpSharedInformerFactory)
+		tmcVWs, err := opts.TmcVirtualWorkspaces.NewVirtualWorkspaces(
+			virtualWorkspacesConfig,
+			virtualcommandoptions.DefaultRootPathPrefix,
+			core.ShardExternalURL,
+			core.CacheKcpSharedInformerFactory,
+			cacheTmcSharedInformerFactory,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -88,9 +123,12 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 	}
 
 	c := &Config{
-		Options:     opts,
-		Core:        core,
-		ExtraConfig: ExtraConfig{},
+		Options: opts,
+		Core:    core,
+		ExtraConfig: ExtraConfig{
+			TmcSharedInformerFactory:      tmcSharedInformerFactory,
+			CacheTmcSharedInformerFactory: cacheTmcSharedInformerFactory,
+		},
 	}
 
 	return c, nil
