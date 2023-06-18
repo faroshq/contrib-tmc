@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
@@ -28,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/faroshq/tmc/tmc/pkg/coordination"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 )
 
 func intPtr(i int32) *int32 {

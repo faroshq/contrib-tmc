@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/kcp-dev/kcp/pkg/logging"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -28,7 +30,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/faroshq/tmc/pkg/syncer/shared"
-	"github.com/kcp-dev/kcp/pkg/logging"
 )
 
 const (

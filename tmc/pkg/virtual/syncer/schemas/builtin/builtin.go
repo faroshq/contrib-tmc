@@ -17,6 +17,9 @@ limitations under the License.
 package builtin
 
 import (
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/internalapis"
+	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,9 +28,6 @@ import (
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"k8s.io/kubernetes/pkg/apis/core/install/genericcontrolplane"
 	generatedopenapi "k8s.io/kubernetes/pkg/generated/openapi"
-
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/internalapis"
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 )
 
 // syncerSchemas contains a list of internal APIs that should be exposed for the

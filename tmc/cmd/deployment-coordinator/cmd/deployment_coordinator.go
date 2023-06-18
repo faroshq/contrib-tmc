@@ -22,6 +22,7 @@ import (
 
 	kubernetesinformers "github.com/kcp-dev/client-go/informers"
 	kubernetesclient "github.com/kcp-dev/client-go/kubernetes"
+	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
 	"github.com/spf13/cobra"
 
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -33,7 +34,6 @@ import (
 
 	"github.com/faroshq/tmc/pkg/reconciler/coordination/deployment"
 	"github.com/faroshq/tmc/tmc/cmd/deployment-coordinator/options"
-	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
 )
 
 const numThreads = 2

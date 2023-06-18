@@ -23,6 +23,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/kcp-dev/kcp/pkg/logging"
+
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +38,6 @@ import (
 	workloadcliplugin "github.com/faroshq/tmc/pkg/cliplugins/workload/plugin"
 	"github.com/faroshq/tmc/pkg/syncer/shared"
 	. "github.com/faroshq/tmc/tmc/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/logging"
 )
 
 func deepEqualFinalizersAndStatus(oldUnstrob, newUnstrob *unstructured.Unstructured) bool {

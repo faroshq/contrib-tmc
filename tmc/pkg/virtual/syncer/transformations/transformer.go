@@ -24,6 +24,9 @@ import (
 	"strings"
 
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	. "github.com/kcp-dev/kcp/pkg/logging"
+	dynamiccontext "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/context"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/transforming"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,9 +43,6 @@ import (
 	"github.com/faroshq/tmc/pkg/syncer/shared"
 	. "github.com/faroshq/tmc/tmc/pkg/logging"
 	syncercontext "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/context"
-	. "github.com/kcp-dev/kcp/pkg/logging"
-	dynamiccontext "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/context"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/transforming"
 )
 
 const (

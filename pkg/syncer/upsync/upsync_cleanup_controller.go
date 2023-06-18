@@ -24,6 +24,9 @@ import (
 	"github.com/go-logr/logr"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/kcp/pkg/indexers"
+	ddsif "github.com/kcp-dev/kcp/pkg/informer"
+	"github.com/kcp-dev/kcp/pkg/logging"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -40,9 +43,6 @@ import (
 
 	syncerindexers "github.com/faroshq/tmc/pkg/syncer/indexers"
 	"github.com/faroshq/tmc/pkg/syncer/shared"
-	"github.com/kcp-dev/kcp/pkg/indexers"
-	ddsif "github.com/kcp-dev/kcp/pkg/informer"
-	"github.com/kcp-dev/kcp/pkg/logging"
 )
 
 const cleanupControllerName = "kcp-resource-upsyncer-cleanup"

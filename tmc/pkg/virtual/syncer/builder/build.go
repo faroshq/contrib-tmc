@@ -21,6 +21,10 @@ import (
 
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	"github.com/kcp-dev/kcp/pkg/indexers"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/forwardingregistry"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/rootapiserver"
+	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
@@ -29,10 +33,6 @@ import (
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/controllers/apireconciler"
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/transformations"
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/upsyncer"
-	"github.com/kcp-dev/kcp/pkg/indexers"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/forwardingregistry"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/rootapiserver"
-	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 )
 
 const (

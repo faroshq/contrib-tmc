@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/kcp-dev/kcp/pkg/logging"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +32,6 @@ import (
 
 	"github.com/faroshq/tmc/pkg/syncer/shared"
 	. "github.com/faroshq/tmc/tmc/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/logging"
 )
 
 func (c *DownstreamController) process(ctx context.Context, key string) error {

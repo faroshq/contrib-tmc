@@ -20,13 +20,14 @@ import (
 	"fmt"
 	"time"
 
+	conditionsv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/util/conditions"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
 	schedulingv1alpha1 "github.com/faroshq/tmc/apis/scheduling/v1alpha1"
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	conditionsv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/util/conditions"
 )
 
 // LocationSyncTargets returns a list of sync targets that match the given location definition.

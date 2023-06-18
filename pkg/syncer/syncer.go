@@ -22,6 +22,12 @@ import (
 	"time"
 
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/kcp/pkg/features"
+	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
+	ddsif "github.com/kcp-dev/kcp/pkg/informer"
+	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpclusterclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
+	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	corev1 "k8s.io/api/core/v1"
@@ -56,12 +62,6 @@ import (
 	"github.com/faroshq/tmc/pkg/syncer/synctarget"
 	"github.com/faroshq/tmc/pkg/syncer/upsync"
 	. "github.com/faroshq/tmc/tmc/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/features"
-	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
-	ddsif "github.com/kcp-dev/kcp/pkg/informer"
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcpclusterclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
-	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 )
 
 const (

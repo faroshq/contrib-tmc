@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	apiresourcev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apiresource/v1alpha1"
+	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
@@ -35,8 +37,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	apiresourcev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apiresource/v1alpha1"
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 )
 
 type SchemaCheck func(t *testing.T, s *apisv1alpha1.APIResourceSchema)

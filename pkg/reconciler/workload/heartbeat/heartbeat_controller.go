@@ -22,6 +22,9 @@ import (
 	"time"
 
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	"github.com/kcp-dev/kcp/pkg/logging"
+	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
+	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,9 +39,6 @@ import (
 	tmcclientset "github.com/faroshq/tmc/client/clientset/versioned/cluster"
 	workloadv1alpha1client "github.com/faroshq/tmc/client/clientset/versioned/typed/workload/v1alpha1"
 	workloadv1alpha1informers "github.com/faroshq/tmc/client/informers/externalversions/workload/v1alpha1"
-	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
-	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 )
 
 const ControllerName = "kcp-synctarget-heartbeat"

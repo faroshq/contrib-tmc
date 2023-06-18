@@ -20,15 +20,16 @@ import (
 	"context"
 	_ "net/http/pprof"
 
+	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
+	coreserver "github.com/kcp-dev/kcp/pkg/server"
+	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+
 	"k8s.io/apimachinery/pkg/util/sets"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	configrootcompute "github.com/faroshq/tmc/config/rootcompute"
-	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
-	coreserver "github.com/kcp-dev/kcp/pkg/server"
-	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 )
 
 type Server struct {

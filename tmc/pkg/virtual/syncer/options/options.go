@@ -19,13 +19,13 @@ package options
 import (
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/rootapiserver"
+	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 	"github.com/spf13/pflag"
 
 	"k8s.io/client-go/rest"
 
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/builder"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/rootapiserver"
-	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 )
 
 type Syncer struct{}

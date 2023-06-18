@@ -25,6 +25,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	dynamiccontext "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/context"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/transforming"
+	"github.com/kcp-dev/kcp/sdk/client"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
@@ -42,9 +45,6 @@ import (
 
 	"github.com/faroshq/tmc/apis/workload/helpers"
 	syncercontext "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/context"
-	dynamiccontext "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/context"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/transforming"
-	"github.com/kcp-dev/kcp/sdk/client"
 )
 
 type mockedClusterClient struct {

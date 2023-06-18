@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	ddsif "github.com/kcp-dev/kcp/pkg/informer"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +50,6 @@ import (
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	"github.com/faroshq/tmc/pkg/syncer/indexers"
 	"github.com/faroshq/tmc/pkg/syncer/synctarget"
-	ddsif "github.com/kcp-dev/kcp/pkg/informer"
 )
 
 var scheme *runtime.Scheme

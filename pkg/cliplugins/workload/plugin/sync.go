@@ -34,6 +34,13 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/kcp-dev/kcp/pkg/cliplugins/base"
+	"github.com/kcp-dev/kcp/pkg/cliplugins/helpers"
+	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
+	apiresourcev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apiresource/v1alpha1"
+	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcpclient "github.com/kcp-dev/kcp/sdk/client/clientset/versioned"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/martinlindhe/base36"
 	"github.com/spf13/cobra"
@@ -57,13 +64,6 @@ import (
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	tmcclient "github.com/faroshq/tmc/client/clientset/versioned"
 	"github.com/faroshq/tmc/pkg/reconciler/workload/apiexport"
-	"github.com/kcp-dev/kcp/pkg/cliplugins/base"
-	"github.com/kcp-dev/kcp/pkg/cliplugins/helpers"
-	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
-	apiresourcev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apiresource/v1alpha1"
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	kcpclient "github.com/kcp-dev/kcp/sdk/client/clientset/versioned"
 )
 
 //go:embed *.yaml

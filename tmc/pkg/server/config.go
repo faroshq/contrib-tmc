@@ -19,12 +19,13 @@ package server
 import (
 	_ "net/http/pprof"
 
-	"k8s.io/client-go/rest"
-
-	"github.com/faroshq/tmc/tmc/pkg/server/options"
 	virtualcommandoptions "github.com/kcp-dev/kcp/cmd/virtual-workspaces/options"
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
 	corevwoptions "github.com/kcp-dev/kcp/pkg/virtual/options"
+
+	"k8s.io/client-go/rest"
+
+	"github.com/faroshq/tmc/tmc/pkg/server/options"
 )
 
 type Config struct {

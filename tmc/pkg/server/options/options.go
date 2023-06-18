@@ -17,10 +17,11 @@ limitations under the License.
 package options
 
 import (
+	kcpcoreoptions "github.com/kcp-dev/kcp/pkg/server/options"
+
 	cliflag "k8s.io/component-base/cli/flag"
 
 	tmcvirtualoptions "github.com/faroshq/tmc/tmc/pkg/virtual/options"
-	kcpcoreoptions "github.com/kcp-dev/kcp/pkg/server/options"
 )
 
 type Options struct {

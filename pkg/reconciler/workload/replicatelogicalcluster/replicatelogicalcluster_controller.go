@@ -20,6 +20,11 @@ import (
 	"fmt"
 
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	"github.com/kcp-dev/kcp/pkg/reconciler/cache/labellogicalcluster"
+	"github.com/kcp-dev/kcp/pkg/reconciler/cache/replication"
+	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
+	corev1alpha1informers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,11 +34,6 @@ import (
 	"github.com/faroshq/tmc/apis/workload"
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	workloadv1alpha1informers "github.com/faroshq/tmc/client/informers/externalversions/workload/v1alpha1"
-	"github.com/kcp-dev/kcp/pkg/reconciler/cache/labellogicalcluster"
-	"github.com/kcp-dev/kcp/pkg/reconciler/cache/replication"
-	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
-	corev1alpha1informers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions/core/v1alpha1"
 )
 
 const (

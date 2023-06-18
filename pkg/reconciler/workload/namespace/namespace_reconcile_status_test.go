@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	conditionsapi "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/util/conditions"
 	"github.com/stretchr/testify/require"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,8 +29,6 @@ import (
 
 	schedulingv1alpha1 "github.com/faroshq/tmc/apis/scheduling/v1alpha1"
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	conditionsapi "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/util/conditions"
 )
 
 func TestSetScheduledCondition(t *testing.T) {

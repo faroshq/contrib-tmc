@@ -23,6 +23,8 @@ import (
 
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	"github.com/kcp-dev/kcp/pkg/reconciler/apis/apiresource"
+	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 
 	kcpapiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/kcp/clientset/versioned"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -42,8 +44,6 @@ import (
 	workloadresource "github.com/faroshq/tmc/pkg/reconciler/workload/resource"
 	synctargetcontroller "github.com/faroshq/tmc/pkg/reconciler/workload/synctarget"
 	"github.com/faroshq/tmc/pkg/reconciler/workload/synctargetexports"
-	"github.com/kcp-dev/kcp/pkg/reconciler/apis/apiresource"
-	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 )
 
 func postStartHookName(controllerName string) string {

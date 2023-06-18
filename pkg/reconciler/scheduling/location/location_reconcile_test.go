@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	conditionsv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
@@ -29,7 +30,6 @@ import (
 
 	schedulingv1alpha1 "github.com/faroshq/tmc/apis/scheduling/v1alpha1"
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	conditionsv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
 )
 
 type LocationCheck func(t *testing.T, l *schedulingv1alpha1.Location)

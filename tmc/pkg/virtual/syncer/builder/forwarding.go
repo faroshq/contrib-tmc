@@ -20,6 +20,8 @@ import (
 	"context"
 
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apiserver"
+	registry "github.com/kcp-dev/kcp/pkg/virtual/framework/forwardingregistry"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	structuralschema "k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
@@ -29,9 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/kube-openapi/pkg/validation/validate"
-
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apiserver"
-	registry "github.com/kcp-dev/kcp/pkg/virtual/framework/forwardingregistry"
 )
 
 type BuildRestProviderFunc func(ctx context.Context, clusterClient kcpdynamic.ClusterInterface, apiExportIdentityHash string, wrapper registry.StorageWrapper) apiserver.RestProviderFunc

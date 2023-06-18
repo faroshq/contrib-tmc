@@ -20,6 +20,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/kcp-dev/kcp/pkg/logging"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -28,7 +30,6 @@ import (
 
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	"github.com/faroshq/tmc/pkg/syncer/shared"
-	"github.com/kcp-dev/kcp/pkg/logging"
 )
 
 func (c *controller) process(ctx context.Context, key string) error {

@@ -25,6 +25,16 @@ import (
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	"github.com/kcp-dev/kcp/pkg/authorization/delegated"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework"
+	virtualworkspacesdynamic "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apiserver"
+	dynamiccontext "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/context"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/forwardingregistry"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/transforming"
+	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -38,16 +48,6 @@ import (
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	syncercontext "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/context"
 	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/controllers/apireconciler"
-	"github.com/kcp-dev/kcp/pkg/authorization/delegated"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework"
-	virtualworkspacesdynamic "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apiserver"
-	dynamiccontext "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/context"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/forwardingregistry"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/transforming"
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 )
 
 type templateProvider struct {
