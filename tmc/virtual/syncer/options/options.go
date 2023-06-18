@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/builder"
+	"github.com/faroshq/tmc/tmc/virtual/syncer/builder"
 )
 
 type Syncer struct{}

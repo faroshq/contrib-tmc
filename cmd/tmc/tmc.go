@@ -38,10 +38,10 @@ import (
 	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	"github.com/faroshq/tmc/tmc/pkg/cmd/help"
-	tmcfeatures "github.com/faroshq/tmc/tmc/pkg/features"
-	tmcserver "github.com/faroshq/tmc/tmc/pkg/server"
-	"github.com/faroshq/tmc/tmc/pkg/server/options"
+	"github.com/faroshq/tmc/tmc/cmd/help"
+	tmcfeatures "github.com/faroshq/tmc/tmc/features"
+	tmcserver "github.com/faroshq/tmc/tmc/server"
+	"github.com/faroshq/tmc/tmc/server/options"
 	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
 )
 

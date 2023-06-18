@@ -45,7 +45,7 @@ import (
 
 	"github.com/faroshq/tmc/apis/workload/helpers"
 	"github.com/faroshq/tmc/apis/workload/v1alpha1"
-	"github.com/faroshq/tmc/tmc/pkg/coordination"
+	"github.com/faroshq/tmc/tmc/coordination"
 )
 
 const (

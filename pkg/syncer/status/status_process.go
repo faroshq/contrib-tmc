@@ -37,7 +37,7 @@ import (
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	workloadcliplugin "github.com/faroshq/tmc/pkg/cliplugins/workload/plugin"
 	"github.com/faroshq/tmc/pkg/syncer/shared"
-	. "github.com/faroshq/tmc/tmc/pkg/logging"
+	. "github.com/faroshq/tmc/tmc/logging"
 )
 
 func deepEqualFinalizersAndStatus(oldUnstrob, newUnstrob *unstructured.Unstructured) bool {

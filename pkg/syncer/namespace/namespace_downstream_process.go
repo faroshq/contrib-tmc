@@ -31,7 +31,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/faroshq/tmc/pkg/syncer/shared"
-	. "github.com/faroshq/tmc/tmc/pkg/logging"
+	. "github.com/faroshq/tmc/tmc/logging"
 )
 
 func (c *DownstreamController) process(ctx context.Context, key string) error {

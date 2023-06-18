@@ -50,7 +50,7 @@ import (
 	"github.com/faroshq/tmc/pkg/syncer/shared"
 	"github.com/faroshq/tmc/pkg/syncer/spec/dns"
 	"github.com/faroshq/tmc/pkg/syncer/synctarget"
-	. "github.com/faroshq/tmc/tmc/pkg/logging"
+	. "github.com/faroshq/tmc/tmc/logging"
 )
 
 const (

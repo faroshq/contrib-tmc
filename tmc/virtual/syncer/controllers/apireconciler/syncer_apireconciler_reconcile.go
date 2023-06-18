@@ -34,7 +34,7 @@ import (
 	"k8s.io/klog/v2"
 
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	syncerbuiltin "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/schemas/builtin"
+	syncerbuiltin "github.com/faroshq/tmc/tmc/virtual/syncer/schemas/builtin"
 )
 
 func (c *APIReconciler) reconcile(ctx context.Context, apiDomainKey dynamiccontext.APIDomainKey, syncTarget *workloadv1alpha1.SyncTarget) error {

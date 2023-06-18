@@ -21,8 +21,8 @@ import (
 
 	cliflag "k8s.io/component-base/cli/flag"
 
+	tmcserveroptions "github.com/faroshq/tmc/tmc/server/options"
 	kcpcoreoptions "github.com/kcp-dev/kcp/cmd/kcp-core/options"
-	tmcserveroptions "github.com/kcp-dev/kcp/tmc/pkg/server/options"
 )
 
 type Options struct {

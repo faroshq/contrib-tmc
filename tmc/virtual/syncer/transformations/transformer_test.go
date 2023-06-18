@@ -44,7 +44,7 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/faroshq/tmc/apis/workload/helpers"
-	syncercontext "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/context"
+	syncercontext "github.com/faroshq/tmc/tmc/virtual/syncer/context"
 )
 
 type mockedClusterClient struct {

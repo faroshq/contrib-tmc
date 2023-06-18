@@ -41,8 +41,8 @@ import (
 	"github.com/faroshq/tmc/apis/workload/helpers"
 	"github.com/faroshq/tmc/apis/workload/v1alpha1"
 	"github.com/faroshq/tmc/pkg/syncer/shared"
-	. "github.com/faroshq/tmc/tmc/pkg/logging"
-	syncercontext "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/context"
+	. "github.com/faroshq/tmc/tmc/logging"
+	syncercontext "github.com/faroshq/tmc/tmc/virtual/syncer/context"
 )
 
 const (

@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	synceroptions "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/options"
+	synceroptions "github.com/faroshq/tmc/tmc/virtual/syncer/options"
 )
 
 const virtualWorkspacesFlagPrefix = "virtual-workspaces-"

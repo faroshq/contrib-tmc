@@ -61,7 +61,7 @@ import (
 	"github.com/faroshq/tmc/pkg/syncer/status"
 	"github.com/faroshq/tmc/pkg/syncer/synctarget"
 	"github.com/faroshq/tmc/pkg/syncer/upsync"
-	. "github.com/faroshq/tmc/tmc/pkg/logging"
+	. "github.com/faroshq/tmc/tmc/logging"
 )
 
 const (

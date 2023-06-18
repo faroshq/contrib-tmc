@@ -47,8 +47,8 @@ import (
 
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	syncercontext "github.com/faroshq/tmc/tmc/pkg/virtual/syncer/context"
-	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/controllers/apireconciler"
+	syncercontext "github.com/faroshq/tmc/tmc/virtual/syncer/context"
+	"github.com/faroshq/tmc/tmc/virtual/syncer/controllers/apireconciler"
 )
 
 type templateProvider struct {

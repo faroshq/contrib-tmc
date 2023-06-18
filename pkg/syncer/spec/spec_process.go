@@ -44,7 +44,7 @@ import (
 
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	"github.com/faroshq/tmc/pkg/syncer/shared"
-	. "github.com/faroshq/tmc/tmc/pkg/logging"
+	. "github.com/faroshq/tmc/tmc/logging"
 )
 
 const (

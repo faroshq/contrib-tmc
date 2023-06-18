@@ -31,9 +31,9 @@ import (
 
 	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
 	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/controllers/apireconciler"
-	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/transformations"
-	"github.com/faroshq/tmc/tmc/pkg/virtual/syncer/upsyncer"
+	"github.com/faroshq/tmc/tmc/virtual/syncer/controllers/apireconciler"
+	"github.com/faroshq/tmc/tmc/virtual/syncer/transformations"
+	"github.com/faroshq/tmc/tmc/virtual/syncer/upsyncer"
 )
 
 const (

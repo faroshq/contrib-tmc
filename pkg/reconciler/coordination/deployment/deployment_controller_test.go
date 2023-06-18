@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/faroshq/tmc/tmc/pkg/coordination"
+	"github.com/faroshq/tmc/tmc/coordination"
 )
 
 func intPtr(i int32) *int32 {

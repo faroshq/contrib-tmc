@@ -27,7 +27,7 @@ import (
 
 	tmcclientset "github.com/faroshq/tmc/client/clientset/versioned/cluster"
 	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	"github.com/faroshq/tmc/tmc/pkg/server/options"
+	"github.com/faroshq/tmc/tmc/server/options"
 )
 
 type Config struct {
