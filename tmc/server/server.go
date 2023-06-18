@@ -21,7 +21,6 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 
@@ -31,6 +30,7 @@ import (
 	"k8s.io/klog/v2"
 
 	configrootcompute "github.com/faroshq/tmc/config/rootcompute"
+	tmcfeatures "github.com/faroshq/tmc/tmc/features"
 )
 
 const resyncPeriod = 10 * time.Hour
@@ -125,7 +125,7 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 	}
 
-	if kcpfeatures.DefaultFeatureGate.Enabled(kcpfeatures.LocationAPI) {
+	if tmcfeatures.DefaultFeatureGate.Enabled(tmcfeatures.LocationAPI) {
 		if s.Options.Core.Controllers.EnableAll || enabled.Has("scheduling") {
 			if err := s.installWorkloadNamespaceScheduler(ctx, controllerConfig); err != nil {
 				return err
