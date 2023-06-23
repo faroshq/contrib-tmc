@@ -22,5 +22,5 @@ jobs:
         shell: bash
         run: |
           set -xe
-          make generate
+          make tools generate
           [[ -z "$(git status -s)" ]]
