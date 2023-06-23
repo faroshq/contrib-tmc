@@ -43,8 +43,8 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	clienttesting "k8s.io/client-go/testing"
 
-	"github.com/faroshq/tmc/apis/workload/helpers"
-	syncercontext "github.com/faroshq/tmc/tmc/virtual/syncer/context"
+	"github.com/kcp-dev/contrib-tmc/apis/workload/helpers"
+	syncercontext "github.com/kcp-dev/contrib-tmc/tmc/virtual/syncer/context"
 )
 
 type mockedClusterClient struct {

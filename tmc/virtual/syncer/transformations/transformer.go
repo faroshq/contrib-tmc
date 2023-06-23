@@ -38,11 +38,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
-	"github.com/faroshq/tmc/apis/workload/helpers"
-	"github.com/faroshq/tmc/apis/workload/v1alpha1"
-	"github.com/faroshq/tmc/pkg/syncer/shared"
-	. "github.com/faroshq/tmc/tmc/logging"
-	syncercontext "github.com/faroshq/tmc/tmc/virtual/syncer/context"
+	"github.com/kcp-dev/contrib-tmc/apis/workload/helpers"
+	"github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
+	. "github.com/kcp-dev/contrib-tmc/tmc/logging"
+	syncercontext "github.com/kcp-dev/contrib-tmc/tmc/virtual/syncer/context"
 )
 
 const (

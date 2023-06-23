@@ -34,8 +34,8 @@ import (
 	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	synceroptions "github.com/faroshq/tmc/cmd/syncer/options"
-	"github.com/faroshq/tmc/pkg/syncer"
+	synceroptions "github.com/kcp-dev/contrib-tmc/cmd/syncer/options"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer"
 )
 
 const numThreads = 2

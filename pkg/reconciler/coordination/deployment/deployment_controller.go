@@ -43,9 +43,9 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	"github.com/faroshq/tmc/apis/workload/helpers"
-	"github.com/faroshq/tmc/apis/workload/v1alpha1"
-	"github.com/faroshq/tmc/tmc/coordination"
+	"github.com/kcp-dev/contrib-tmc/apis/workload/helpers"
+	"github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	"github.com/kcp-dev/contrib-tmc/tmc/coordination"
 )
 
 const (

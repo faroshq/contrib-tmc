@@ -34,10 +34,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	workloadcliplugin "github.com/faroshq/tmc/pkg/cliplugins/workload/plugin"
-	"github.com/faroshq/tmc/pkg/syncer/shared"
-	. "github.com/faroshq/tmc/tmc/logging"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	workloadcliplugin "github.com/kcp-dev/contrib-tmc/pkg/cliplugins/workload/plugin"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
+	. "github.com/kcp-dev/contrib-tmc/tmc/logging"
 )
 
 func deepEqualFinalizersAndStatus(oldUnstrob, newUnstrob *unstructured.Unstructured) bool {

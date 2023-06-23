@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/faroshq/tmc/apis/workload/helpers"
+	"github.com/kcp-dev/contrib-tmc/apis/workload/helpers"
 )
 
 // Transformation defines the action of transforming an resource when exposing it

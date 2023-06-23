@@ -28,7 +28,7 @@ import (
 	kcpapiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/kcp/clientset/versioned"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	kube124 "github.com/faroshq/tmc/config/rootcompute/kube-1.24"
+	kube124 "github.com/kcp-dev/contrib-tmc/config/rootcompute/kube-1.24"
 )
 
 //go:embed *.yaml

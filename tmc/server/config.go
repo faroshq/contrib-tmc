@@ -25,9 +25,9 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	tmcclientset "github.com/faroshq/tmc/client/clientset/versioned/cluster"
-	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	"github.com/faroshq/tmc/tmc/server/options"
+	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
+	tmcinformers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions"
+	"github.com/kcp-dev/contrib-tmc/tmc/server/options"
 )
 
 type Config struct {

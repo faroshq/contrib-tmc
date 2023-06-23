@@ -25,7 +25,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/faroshq/tmc/apis/workload"
+	"github.com/kcp-dev/contrib-tmc/apis/workload"
 )
 
 const (

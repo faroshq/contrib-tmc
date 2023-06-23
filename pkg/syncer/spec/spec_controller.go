@@ -45,12 +45,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	syncerindexers "github.com/faroshq/tmc/pkg/syncer/indexers"
-	"github.com/faroshq/tmc/pkg/syncer/shared"
-	"github.com/faroshq/tmc/pkg/syncer/spec/dns"
-	"github.com/faroshq/tmc/pkg/syncer/synctarget"
-	. "github.com/faroshq/tmc/tmc/logging"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	syncerindexers "github.com/kcp-dev/contrib-tmc/pkg/syncer/indexers"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer/spec/dns"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer/synctarget"
+	. "github.com/kcp-dev/contrib-tmc/tmc/logging"
 )
 
 const (

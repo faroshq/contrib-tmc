@@ -29,8 +29,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	configrootcompute "github.com/faroshq/tmc/config/rootcompute"
-	tmcfeatures "github.com/faroshq/tmc/tmc/features"
+	configrootcompute "github.com/kcp-dev/contrib-tmc/config/rootcompute"
+	tmcfeatures "github.com/kcp-dev/contrib-tmc/tmc/features"
 )
 
 const resyncPeriod = 10 * time.Hour

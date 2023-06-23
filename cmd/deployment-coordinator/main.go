@@ -22,7 +22,7 @@ import (
 	"k8s.io/component-base/cli"
 	_ "k8s.io/component-base/logs/json/register"
 
-	"github.com/faroshq/tmc/cmd/deployment-coordinator/cmd"
+	"github.com/kcp-dev/contrib-tmc/cmd/deployment-coordinator/cmd"
 )
 
 func main() {

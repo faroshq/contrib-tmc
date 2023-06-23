@@ -39,9 +39,9 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/klog/v2"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	tmcindexers "github.com/faroshq/tmc/pkg/indexers"
-	"github.com/faroshq/tmc/pkg/syncer/shared"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	tmcindexers "github.com/kcp-dev/contrib-tmc/pkg/indexers"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
 )
 
 var (

@@ -43,9 +43,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	workloadinformers "github.com/faroshq/tmc/client/informers/externalversions/workload/v1alpha1"
-	workloadv1alpha1listers "github.com/faroshq/tmc/client/listers/workload/v1alpha1"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	workloadinformers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/workload/v1alpha1"
+	workloadv1alpha1listers "github.com/kcp-dev/contrib-tmc/client/listers/workload/v1alpha1"
 )
 
 var clusterKind = reflect.TypeOf(workloadv1alpha1.SyncTarget{}).Name()

@@ -21,7 +21,7 @@ import (
 	"github.com/kcp-dev/kcp/sdk/client"
 	"github.com/kcp-dev/logicalcluster/v3"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
 )
 
 // IndexAPIExportsByAPIResourceSchemas is an index function that maps an APIExport to its spec.latestResourceSchemas.

@@ -64,7 +64,7 @@ CODE_GENERATOR_BIN := code-generator
 CODE_GENERATOR := $(TOOLS_GOBIN_DIR)/$(CODE_GENERATOR_BIN)-$(CODE_GENERATOR_VER)
 export CODE_GENERATOR # so hack scripts can use it
 
-KCP_APIGEN_VER := v0.0.0-20230611113342-27b3b359e28e # TODO: Replace once fixed upstream
+KCP_APIGEN_VER := v0.20.0
 KCP_APIGEN_BIN := apigen
 KCP_APIGEN_GEN := $(TOOLS_DIR)/$(KCP_APIGEN_BIN)-$(KCP_APIGEN_VER)
 export KCP_APIGEN_GEN # so hack scripts can use it
@@ -116,7 +116,7 @@ verify-codegen:
 
 .PHONY: imports
 imports: $(OPENSHIFT_GOIMPORTS)
-	$(OPENSHIFT_GOIMPORTS) -m github.com/faroshq/tmc
+	$(OPENSHIFT_GOIMPORTS) -m github.com/kcp-dev/contrib-tmc
 
 all: build
 .PHONY: all

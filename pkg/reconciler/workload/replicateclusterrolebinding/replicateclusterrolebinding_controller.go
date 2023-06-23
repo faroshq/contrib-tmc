@@ -24,8 +24,8 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 
-	"github.com/faroshq/tmc/apis/workload"
-	"github.com/faroshq/tmc/pkg/reconciler/workload/replicateclusterrole"
+	"github.com/kcp-dev/contrib-tmc/apis/workload"
+	"github.com/kcp-dev/contrib-tmc/pkg/reconciler/workload/replicateclusterrole"
 )
 
 const (

@@ -61,9 +61,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	tmcclient "github.com/faroshq/tmc/client/clientset/versioned"
-	"github.com/faroshq/tmc/pkg/reconciler/workload/apiexport"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	tmcclient "github.com/kcp-dev/contrib-tmc/client/clientset/versioned"
+	"github.com/kcp-dev/contrib-tmc/pkg/reconciler/workload/apiexport"
 )
 
 //go:embed *.yaml

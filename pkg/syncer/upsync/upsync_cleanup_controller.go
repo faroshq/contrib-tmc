@@ -41,8 +41,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	syncerindexers "github.com/faroshq/tmc/pkg/syncer/indexers"
-	"github.com/faroshq/tmc/pkg/syncer/shared"
+	syncerindexers "github.com/kcp-dev/contrib-tmc/pkg/syncer/indexers"
+	"github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
 )
 
 const cleanupControllerName = "kcp-resource-upsyncer-cleanup"

@@ -45,10 +45,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	syncercontext "github.com/faroshq/tmc/tmc/virtual/syncer/context"
-	"github.com/faroshq/tmc/tmc/virtual/syncer/controllers/apireconciler"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	tmcinformers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions"
+	syncercontext "github.com/kcp-dev/contrib-tmc/tmc/virtual/syncer/context"
+	"github.com/kcp-dev/contrib-tmc/tmc/virtual/syncer/controllers/apireconciler"
 )
 
 type templateProvider struct {

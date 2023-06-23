@@ -37,8 +37,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	syncershared "github.com/faroshq/tmc/pkg/syncer/shared"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	syncershared "github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
 )
 
 // reconcileResource is responsible for setting the cluster for a resource of

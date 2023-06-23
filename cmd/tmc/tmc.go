@@ -39,10 +39,10 @@ import (
 	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	"github.com/faroshq/tmc/tmc/cmd/help"
-	tmcfeatures "github.com/faroshq/tmc/tmc/features"
-	tmcserver "github.com/faroshq/tmc/tmc/server"
-	"github.com/faroshq/tmc/tmc/server/options"
+	"github.com/kcp-dev/contrib-tmc/tmc/cmd/help"
+	tmcfeatures "github.com/kcp-dev/contrib-tmc/tmc/features"
+	tmcserver "github.com/kcp-dev/contrib-tmc/tmc/server"
+	"github.com/kcp-dev/contrib-tmc/tmc/server/options"
 )
 
 func main() {

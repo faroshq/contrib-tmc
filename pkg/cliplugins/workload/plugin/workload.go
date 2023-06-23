@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	tmcclient "github.com/faroshq/tmc/client/clientset/versioned"
+	tmcclient "github.com/kcp-dev/contrib-tmc/client/clientset/versioned"
 )
 
 // CordonOptions contains options for cordoning or uncordoning a SyncTarget.

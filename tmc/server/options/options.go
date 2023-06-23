@@ -21,7 +21,7 @@ import (
 
 	cliflag "k8s.io/component-base/cli/flag"
 
-	tmcvirtualoptions "github.com/faroshq/tmc/tmc/virtual/options"
+	tmcvirtualoptions "github.com/kcp-dev/contrib-tmc/tmc/virtual/options"
 )
 
 type Options struct {

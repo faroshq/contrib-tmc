@@ -1,4 +1,4 @@
-module github.com/faroshq/tmc
+module github.com/kcp-dev/contrib-tmc
 
 go 1.19
 
@@ -10,8 +10,8 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/kcp-dev/apimachinery/v2 v2.0.0-alpha.0.0.20230419125703-767ac05aebce
 	github.com/kcp-dev/client-go v0.0.0-20230519100911-e16eb4c2bf18
-	github.com/kcp-dev/kcp v0.11.0
-	github.com/kcp-dev/kcp/sdk v0.11.0
+	github.com/kcp-dev/kcp v0.20.0
+	github.com/kcp-dev/kcp/sdk v0.20.0
 	github.com/kcp-dev/logicalcluster/v3 v3.0.4
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/miekg/dns v1.1.50
@@ -180,8 +180,6 @@ replace (
 	github.com/google/cel-go => github.com/google/cel-go v0.12.6
 	//	github.com/kcp-dev/kcp => ../kcp
 	//	github.com/kcp-dev/kcp/sdk => ../kcp/sdk
-	github.com/kcp-dev/kcp => github.com/kcp-dev/kcp v0.0.0-20230615190255-daa9217ae2f5 // pre 0.20 release
-	github.com/kcp-dev/kcp/sdk => github.com/kcp-dev/kcp/sdk v0.0.0-20230615190255-daa9217ae2f5 // pre 0.20 release
 	k8s.io/api => github.com/kcp-dev/kubernetes/staging/src/k8s.io/api v0.0.0-20230526104423-c790f4246d25
 	k8s.io/apiextensions-apiserver => github.com/kcp-dev/kubernetes/staging/src/k8s.io/apiextensions-apiserver v0.0.0-20230526104423-c790f4246d25
 	k8s.io/apimachinery => github.com/kcp-dev/kubernetes/staging/src/k8s.io/apimachinery v0.0.0-20230526104423-c790f4246d25

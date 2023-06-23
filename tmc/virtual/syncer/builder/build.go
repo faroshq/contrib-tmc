@@ -29,11 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 
-	workloadv1alpha1 "github.com/faroshq/tmc/apis/workload/v1alpha1"
-	tmcinformers "github.com/faroshq/tmc/client/informers/externalversions"
-	"github.com/faroshq/tmc/tmc/virtual/syncer/controllers/apireconciler"
-	"github.com/faroshq/tmc/tmc/virtual/syncer/transformations"
-	"github.com/faroshq/tmc/tmc/virtual/syncer/upsyncer"
+	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
+	tmcinformers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions"
+	"github.com/kcp-dev/contrib-tmc/tmc/virtual/syncer/controllers/apireconciler"
+	"github.com/kcp-dev/contrib-tmc/tmc/virtual/syncer/transformations"
+	"github.com/kcp-dev/contrib-tmc/tmc/virtual/syncer/upsyncer"
 )
 
 const (
