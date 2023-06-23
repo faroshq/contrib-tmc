@@ -22,6 +22,7 @@ import (
 	"time"
 
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
+	"github.com/kcp-dev/kcp/sdk/apis/core"
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -29,8 +30,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	configkcp "github.com/kcp-dev/contrib-tmc/config/kcp"
 	configrootcompute "github.com/kcp-dev/contrib-tmc/config/rootcompute"
-	tmcfeatures "github.com/kcp-dev/contrib-tmc/tmc/features"
 )
 
 const resyncPeriod = 10 * time.Hour
@@ -66,86 +67,103 @@ func (s *Server) Run(ctx context.Context) error {
 		logger.WithValues("controllers", enabled).Info("starting controllers individually")
 	}
 
-	if s.Options.Core.Controllers.EnableAll || enabled.Has("cluster") {
-		// bootstrap root compute workspace
-		computeBoostrapHookName := "rootComputeBoostrap"
-		if err := s.Core.AddPostStartHook(computeBoostrapHookName, func(hookContext genericapiserver.PostStartHookContext) error {
-			logger := logger.WithValues("postStartHook", computeBoostrapHookName)
-			if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
-				// the root ws is only present on the root shard
-				logger.Info("waiting to bootstrap root compute workspace until root phase1 is complete")
-				s.Core.WaitForPhase1Finished()
+	kcpBootstrapHook := "kcpBootstrap"
+	if err := s.Core.AddPostStartHook(kcpBootstrapHook, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", kcpBootstrapHook)
+		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
+			// the root ws is only present on the root shard
+			logger.Info("waiting to bootstrap root kcp assets until root phase1 is complete")
+			s.Core.WaitForPhase1Finished()
 
-				logger.Info("starting bootstrapping root compute workspace")
-				if err := configrootcompute.Bootstrap(goContext(hookContext),
-					s.Core.BootstrapApiExtensionsClusterClient,
-					s.Core.BootstrapDynamicClusterClient,
-					sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
-				); err != nil {
-					logger.Error(err, "failed to bootstrap root compute workspace")
-					return nil // don't klog.Fatal. This only happens when context is cancelled.
-				}
-				logger.Info("finished bootstrapping root compute workspace")
+			logger.Info("starting bootstrapping root kcp assets")
+			if err := configkcp.Bootstrap(goContext(hookContext),
+				s.Core.KcpClusterClient.Cluster(core.RootCluster.Path()),
+				s.Core.ApiExtensionsClusterClient.Cluster(core.RootCluster.Path()).Discovery(),
+				s.Core.DynamicClusterClient.Cluster(core.RootCluster.Path()),
+				sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
+			); err != nil {
+				logger.Error(err, "failed to bootstrap root kcp assets")
+				return nil // don't klog.Fatal. This only happens when context is cancelled.
 			}
-			return nil
-		}); err != nil {
-			return err
+			logger.Info("finished bootstrapping root kcp assets")
 		}
-
-		// TODO(marun) Consider enabling each controller via a separate flag
-		if err := s.installApiResourceController(ctx, controllerConfig); err != nil {
-			return err
-		}
-		if err := s.installSyncTargetHeartbeatController(ctx, controllerConfig); err != nil {
-			return err
-		}
-		if err := s.installSyncTargetController(ctx, controllerConfig); err != nil {
-			return err
-		}
-		if err := s.installWorkloadSyncTargetExportController(ctx, controllerConfig); err != nil {
-			return err
-		}
-
-		if err := s.installWorkloadReplicateClusterRoleControllers(ctx, controllerConfig); err != nil {
-			return err
-		}
-
-		if err := s.installWorkloadReplicateClusterRoleBindingControllers(ctx, controllerConfig); err != nil {
-			return err
-		}
-
-		if err := s.installWorkloadReplicateLogicalClusterControllers(ctx, controllerConfig); err != nil {
-			return err
-		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
-	if s.Options.Core.Controllers.EnableAll || enabled.Has("resource-scheduler") {
-		if err := s.installWorkloadResourceScheduler(ctx, controllerConfig); err != nil {
-			return err
+	// bootstrap root compute workspace
+	computeBootstrapHookName := "rootComputeBootstrap"
+	if err := s.Core.AddPostStartHook(computeBootstrapHookName, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", computeBootstrapHookName)
+		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
+			// the root ws is only present on the root shard
+			logger.Info("waiting to bootstrap root compute workspace until root phase1 is complete")
+			s.Core.WaitForPhase1Finished()
+
+			logger.Info("starting bootstrapping root compute workspace")
+			if err := configrootcompute.Bootstrap(goContext(hookContext),
+				s.Core.BootstrapApiExtensionsClusterClient,
+				s.Core.BootstrapDynamicClusterClient,
+				sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
+			); err != nil {
+				logger.Error(err, "failed to bootstrap root compute workspace")
+				return nil // don't klog.Fatal. This only happens when context is cancelled.
+			}
+			logger.Info("finished bootstrapping root compute workspace")
 		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
-	if tmcfeatures.DefaultFeatureGate.Enabled(tmcfeatures.LocationAPI) {
-		if s.Options.Core.Controllers.EnableAll || enabled.Has("scheduling") {
-			if err := s.installWorkloadNamespaceScheduler(ctx, controllerConfig); err != nil {
-				return err
-			}
-			if err := s.installWorkloadPlacementScheduler(ctx, controllerConfig); err != nil {
-				return err
-			}
-			if err := s.installSchedulingLocationStatusController(ctx, controllerConfig); err != nil {
-				return err
-			}
-			if err := s.installSchedulingPlacementController(ctx, controllerConfig); err != nil {
-				return err
-			}
-			if err := s.installWorkloadAPIExportController(ctx, controllerConfig); err != nil {
-				return err
-			}
-			if err := s.installWorkloadDefaultLocationController(ctx, controllerConfig); err != nil {
-				return err
-			}
-		}
+	// TODO(marun) Consider enabling each controller via a separate flag
+	if err := s.installApiResourceController(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installSyncTargetHeartbeatController(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installSyncTargetController(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installWorkloadSyncTargetExportController(ctx, controllerConfig); err != nil {
+		return err
+	}
+
+	if err := s.installWorkloadReplicateClusterRoleControllers(ctx, controllerConfig); err != nil {
+		return err
+	}
+
+	if err := s.installWorkloadReplicateClusterRoleBindingControllers(ctx, controllerConfig); err != nil {
+		return err
+	}
+
+	if err := s.installWorkloadReplicateLogicalClusterControllers(ctx, controllerConfig); err != nil {
+		return err
+	}
+
+	if err := s.installWorkloadResourceScheduler(ctx, controllerConfig); err != nil {
+		return err
+	}
+
+	if err := s.installWorkloadNamespaceScheduler(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installWorkloadPlacementScheduler(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installSchedulingLocationStatusController(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installSchedulingPlacementController(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installWorkloadAPIExportController(ctx, controllerConfig); err != nil {
+		return err
+	}
+	if err := s.installWorkloadDefaultLocationController(ctx, controllerConfig); err != nil {
+		return err
 	}
 
 	return s.Core.Run(ctx)
