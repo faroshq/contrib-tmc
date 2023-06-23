@@ -21,6 +21,10 @@ import (
 	"embed"
 	"time"
 
+	confighelpers "github.com/kcp-dev/kcp/config/helpers"
+	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpclient "github.com/kcp-dev/kcp/sdk/client/clientset/versioned"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -28,10 +32,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
-
-	confighelpers "github.com/kcp-dev/kcp/config/helpers"
-	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcpclient "github.com/kcp-dev/kcp/sdk/client/clientset/versioned"
 )
 
 //go:embed *.yaml
