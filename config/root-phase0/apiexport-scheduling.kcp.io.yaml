@@ -5,6 +5,6 @@ metadata:
   name: scheduling.kcp.io
 spec:
   latestResourceSchemas:
-  - v230611-7d44188.locations.scheduling.kcp.io
-  - v230611-7d44188.placements.scheduling.kcp.io
+  - v230623-af65f38.locations.scheduling.kcp.io
+  - v230623-af65f38.placements.scheduling.kcp.io
 status: {}

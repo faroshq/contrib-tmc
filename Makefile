@@ -22,6 +22,22 @@ TOOLS_GOBIN_DIR := $(abspath $(TOOLS_DIR))
 GOBIN_DIR=$(abspath ./bin)
 PATH := $(GOBIN_DIR):$(TOOLS_GOBIN_DIR):$(PATH)
 
+ARCH := $(shell go env GOARCH)
+OS := $(shell go env GOOS)
+
+LDFLAGS := \
+	-extldflags '-static'
+
+ldflags:
+	@echo $(LDFLAGS)
+
+.PHONY: require-%
+require-%:
+	@if ! command -v $* 1> /dev/null 2>&1; then echo "$* not found in ${PATH}"; exit 1; fi
+
+all: build
+.PHONY: all
+
 # Detect the path used for the install target
 ifeq (,$(shell go env GOBIN))
 INSTALL_GOBIN=$(shell go env GOPATH)/bin
@@ -48,10 +64,19 @@ CODE_GENERATOR_BIN := code-generator
 CODE_GENERATOR := $(TOOLS_GOBIN_DIR)/$(CODE_GENERATOR_BIN)-$(CODE_GENERATOR_VER)
 export CODE_GENERATOR # so hack scripts can use it
 
-KCP_APIGEN_VER := v0.0.0-20230611113342-27b3b359e28e # TODO: Replace once fixed upstream
-KCP_APIGEN_BIN := kcp-apigen
+STATICCHECK_VER := 2022.1
+STATICCHECK_BIN := staticcheck
+STATICCHECK := $(TOOLS_GOBIN_DIR)/$(STATICCHECK_BIN)-$(STATICCHECK_VER)
+
+KCP_APIGEN_VER := v0.20.0
+KCP_APIGEN_BIN := apigen
 KCP_APIGEN_GEN := $(TOOLS_DIR)/$(KCP_APIGEN_BIN)-$(KCP_APIGEN_VER)
 export KCP_APIGEN_GEN # so hack scripts can use it
+
+LOGCHECK_VER := v0.4.0
+LOGCHECK_BIN := logcheck
+LOGCHECK := $(TOOLS_GOBIN_DIR)/$(LOGCHECK_BIN)-$(LOGCHECK_VER)
+export LOGCHECK # so hack scripts can use it
 
 tools: $(GOLANGCI_LINT) $(CONTROLLER_GEN) $(KCP_APIGEN_GEN) $(OPENSHIFT_GOIMPORTS)
 .PHONY: tools
@@ -71,9 +96,22 @@ $(KCP_APIGEN_GEN):
 $(OPENSHIFT_GOIMPORTS):
 	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) github.com/openshift-eng/openshift-goimports $(OPENSHIFT_GOIMPORTS_BIN) $(OPENSHIFT_GOIMPORTS_VER)
 
+$(STATICCHECK):
+	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) honnef.co/go/tools/cmd/staticcheck $(STATICCHECK_BIN) $(STATICCHECK_VER)
+
+$(LOGCHECK):
+	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) sigs.k8s.io/logtools/logcheck $(LOGCHECK_BIN) $(LOGCHECK_VER)
+
 crds: $(CONTROLLER_GEN) $(YAML_PATCH)
 	./hack/update-codegen-crds.sh
 .PHONY: crds
+
+lint: $(GOLANGCI_LINT) $(STATICCHECK) $(LOGCHECK)
+	$(GOLANGCI_LINT) -v run ./...
+	$(STATICCHECK) -checks ST1019,ST1005 ./...
+	./hack/verify-contextual-logging.sh
+.PHONY: lint
+
 
 codegen: crds $(CODE_GENERATOR)
 	go mod download
@@ -100,4 +138,20 @@ verify-codegen:
 
 .PHONY: imports
 imports: $(OPENSHIFT_GOIMPORTS)
-	$(OPENSHIFT_GOIMPORTS) -m github.com/faroshq/tmc
+	$(OPENSHIFT_GOIMPORTS) -m github.com/kcp-dev/contrib-tmc
+
+all: build
+.PHONY: all
+
+build: WHAT ?= ./cmd/...
+build: require-jq require-go require-git
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build $(BUILDFLAGS) -ldflags="$(LDFLAGS)" -o bin $(WHAT)
+.PHONY: build
+
+test:
+	go test -v -failfast `go list ./... | egrep -v /test/` -coverprofile=profile.cov
+.PHONY: test
+
+generate: codegen crds
+	go generate ./...
+.PHONY: generate
