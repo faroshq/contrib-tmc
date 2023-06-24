@@ -78,6 +78,15 @@ LOGCHECK_BIN := logcheck
 LOGCHECK := $(TOOLS_GOBIN_DIR)/$(LOGCHECK_BIN)-$(LOGCHECK_VER)
 export LOGCHECK # so hack scripts can use it
 
+ifdef ARTIFACT_DIR
+GOTESTSUM_ARGS += --junitfile=$(ARTIFACT_DIR)/junit.xml
+endif
+
+GO_TEST = go test
+ifdef USE_GOTESTSUM
+GO_TEST = $(GOTESTSUM) $(GOTESTSUM_ARGS) --
+endif
+
 tools: $(GOLANGCI_LINT) $(CONTROLLER_GEN) $(KCP_APIGEN_GEN) $(OPENSHIFT_GOIMPORTS)
 .PHONY: tools
 
@@ -155,3 +164,25 @@ test:
 generate: codegen crds
 	go generate ./...
 .PHONY: generate
+
+
+E2E_PARALLELISM ?=
+ifdef E2E_PARALLELISM
+PARALLELISM_ARG = -p $(E2E_PARALLELISM) -parallel $(E2E_PARALLELISM)
+endif
+
+COMPLETE_SUITES_ARG =
+ifdef SUITES
+SUITES_ARG = --suites $(SUITES)
+COMPLETE_SUITES_ARG = -args $(SUITES_ARG)
+endif
+
+.PHONY: test-e2e
+ifdef USE_GOTESTSUM
+test-e2e: $(GOTESTSUM)
+endif
+test-e2e: TEST_ARGS ?=
+test-e2e: WHAT ?= ./test/e2e...
+test-e2e: build
+	UNSAFE_E2E_HACK_DISABLE_ETCD_FSYNC=true NO_GORUN=1 GOOS=$(OS) GOARCH=$(ARCH) \
+		$(GO_TEST) -race $(COUNT_ARG) $(PARALLELISM_ARG) $(WHAT) $(TEST_ARGS) $(COMPLETE_SUITES_ARG)

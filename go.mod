@@ -7,7 +7,9 @@ require (
 	github.com/aojea/rwconn v0.1.1
 	github.com/coredns/caddy v1.1.1
 	github.com/coredns/coredns v1.9.3
+	github.com/egymgmbh/go-prefix-writer v0.0.0-20180609083313-7326ea162eca
 	github.com/evanphx/json-patch v5.6.0+incompatible
+	github.com/google/uuid v1.3.0
 	github.com/kcp-dev/apimachinery/v2 v2.0.0-alpha.0.0.20230419125703-767ac05aebce
 	github.com/kcp-dev/client-go v0.0.0-20230519100911-e16eb4c2bf18
 	github.com/kcp-dev/kcp v0.20.0
@@ -18,12 +20,12 @@ require (
 	github.com/muesli/reflow v0.1.0
 	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.2
-	k8s.io/api v0.27.2
-	k8s.io/apimachinery v0.27.2
+	k8s.io/api v0.26.3
+	k8s.io/apimachinery v0.26.3
 	k8s.io/apiserver v0.26.3
 	k8s.io/cli-runtime v0.26.3
 	k8s.io/client-go v0.26.3
-	k8s.io/code-generator v0.27.2
+	k8s.io/code-generator v0.26.3
 	k8s.io/component-base v0.26.3
 	k8s.io/kubernetes v1.26.3
 	sigs.k8s.io/yaml v1.3.0
@@ -59,7 +61,6 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/cel-go v0.14.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
@@ -166,7 +167,7 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/gengo v0.0.0-20220902162205-c0856e24416d // indirect
 	k8s.io/klog/v2 v2.90.1

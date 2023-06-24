@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,28 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package options
+package framework
 
-var (
-	namedFlagSetOrder = []string{
-		"auditing",
-		"authentication",
-		"etcd",
-		"Embedded etcd",
-		"features",
-		"generic",
-		"logs",
-		"metrics",
-		"misc",
-		"secure serving",
-		"traces",
-		"KCP Authentication",
-		"KCP Authorization",
-		"KCP Virtual Workspaces",
-		"KCP Controllers",
-		"KCP Home Workspaces",
-		"KCP Cache Server",
-		"KCP",
-		"TMC Controllers",
-	}
+import (
+	"testing"
+
+	"k8s.io/apimachinery/pkg/util/sets"
 )
+
+// Suite should be called at the very beginning of a test case, to ensure that a test is only
+// run when the suite containing it is selected by the user running tests.
+func Suite(t *testing.T, suite string) {
+	t.Helper()
+	if !sets.New[string](TestConfig.Suites()...).Has(suite) {
+		t.Skipf("suite %s disabled", suite)
+	}
+}

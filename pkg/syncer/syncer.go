@@ -22,7 +22,6 @@ import (
 	"time"
 
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
-	"github.com/kcp-dev/kcp/pkg/features"
 	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
 	ddsif "github.com/kcp-dev/kcp/pkg/informer"
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
@@ -61,6 +60,7 @@ import (
 	"github.com/kcp-dev/contrib-tmc/pkg/syncer/status"
 	"github.com/kcp-dev/contrib-tmc/pkg/syncer/synctarget"
 	"github.com/kcp-dev/contrib-tmc/pkg/syncer/upsync"
+	"github.com/kcp-dev/contrib-tmc/tmc/features"
 	. "github.com/kcp-dev/contrib-tmc/tmc/logging"
 )
 

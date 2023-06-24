@@ -14,30 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package options
+package workspace2
 
 import (
-	"fmt"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	"k8s.io/component-base/cli/flag"
+	"embed"
 )
 
-func TestNamedFlagSetOrder(t *testing.T) {
-	fss := flag.NamedFlagSets{}
-	NewOptions(".tmc").AddFlags(&fss)
-
-	names := make([]string, 0, len(fss.FlagSets))
-	for name, fs := range fss.FlagSets {
-		if !fs.HasFlags() {
-			continue
-		}
-		fmt.Printf("%q,\n", name)
-		names = append(names, name)
-	}
-
-	require.Subset(t, names, namedFlagSetOrder, "namedFlagSetOrder has extra entries")
-	require.Subset(t, namedFlagSetOrder, names, "namedFlagSetOrder in incomplete")
-}
+//go:embed *.yaml
+var FS embed.FS

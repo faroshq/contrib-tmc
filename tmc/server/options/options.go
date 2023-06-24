@@ -62,8 +62,8 @@ func NewOptions(rootDir string) *Options {
 
 func (o *Options) AddFlags(fss *cliflag.NamedFlagSets) {
 	o.Core.AddFlags(fss)
-	o.TmcControllers.AddFlags(fss.FlagSet("KCP Controllers"))
-	o.TmcVirtualWorkspaces.AddFlags(fss.FlagSet("KCP Virtual Workspaces"))
+	o.TmcControllers.AddFlags(fss.FlagSet("TMC Controllers"))
+	o.TmcVirtualWorkspaces.AddFlags(fss.FlagSet("TMC KCP Virtual Workspaces"))
 }
 
 func (o *CompletedOptions) Validate() []error {
