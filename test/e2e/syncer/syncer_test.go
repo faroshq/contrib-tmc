@@ -600,9 +600,9 @@ func TestSyncWorkload(t *testing.T) {
 		"--output-file", "-",
 	}
 
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommand)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommand)
 
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommand)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommand)
 }
 
 func TestCordonUncordonDrain(t *testing.T) {
@@ -649,7 +649,7 @@ func TestCordonUncordonDrain(t *testing.T) {
 		"cordon",
 		syncTargetName,
 	}
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommandCordon)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommandCordon)
 
 	t.Log("Check workload after cordon")
 	cluster, err = tmcClusterClient.Cluster(wsPath).WorkloadV1alpha1().SyncTargets().Get(ctx, syncTargetName, metav1.GetOptions{})
@@ -657,7 +657,7 @@ func TestCordonUncordonDrain(t *testing.T) {
 	require.True(t, cluster.Spec.Unschedulable)
 	require.Nil(t, cluster.Spec.EvictAfter)
 
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommandCordon)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommandCordon)
 
 	t.Log("Uncordon workload")
 	subCommandUncordon := []string{
@@ -665,7 +665,7 @@ func TestCordonUncordonDrain(t *testing.T) {
 		"uncordon",
 		syncTargetName,
 	}
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommandUncordon)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommandUncordon)
 
 	t.Log("Check workload after uncordon")
 	cluster, err = tmcClusterClient.Cluster(wsPath).WorkloadV1alpha1().SyncTargets().Get(ctx, syncTargetName, metav1.GetOptions{})
@@ -673,7 +673,7 @@ func TestCordonUncordonDrain(t *testing.T) {
 	require.False(t, cluster.Spec.Unschedulable)
 	require.Nil(t, cluster.Spec.EvictAfter)
 
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommandUncordon)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommandUncordon)
 
 	t.Log("Drain workload")
 	subCommandDrain := []string{
@@ -681,7 +681,7 @@ func TestCordonUncordonDrain(t *testing.T) {
 		"drain",
 		syncTargetName,
 	}
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommandDrain)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommandDrain)
 
 	t.Log("Check workload after drain started")
 	cluster, err = tmcClusterClient.Cluster(wsPath).WorkloadV1alpha1().SyncTargets().Get(ctx, syncTargetName, metav1.GetOptions{})
@@ -689,7 +689,7 @@ func TestCordonUncordonDrain(t *testing.T) {
 	require.True(t, cluster.Spec.Unschedulable)
 	require.NotNil(t, cluster.Spec.EvictAfter)
 
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommandDrain)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommandDrain)
 
 	t.Log("Remove drain, uncordon workload")
 	subCommandUncordon = []string{
@@ -698,7 +698,7 @@ func TestCordonUncordonDrain(t *testing.T) {
 		syncTargetName,
 	}
 
-	framework.RunKcpCliPlugin(t, kubeconfigPath, subCommandUncordon)
+	framework.RunTMCCliPlugin(t, kubeconfigPath, subCommandUncordon)
 
 	t.Log("Check workload after uncordon")
 	cluster, err = tmcClusterClient.Cluster(wsPath).WorkloadV1alpha1().SyncTargets().Get(ctx, syncTargetName, metav1.GetOptions{})

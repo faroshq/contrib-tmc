@@ -53,5 +53,5 @@ ${CONTROLLER_GEN} \
     output:crd:artifacts:config="${REPO_ROOT}"/test/e2e/reconciler/cluster/
 
 (
-  ${KCP_APIGEN_GEN} --input-dir "${REPO_ROOT}"/config/crds --output-dir "${REPO_ROOT}"/config/root-phase0
+  ${KCP_APIGEN_GEN} --input-dir "${REPO_ROOT}"/config/crds --output-dir "${REPO_ROOT}"/config/kcp
 )

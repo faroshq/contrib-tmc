@@ -82,7 +82,7 @@ func (w bindCompute) Bind(t *testing.T) {
 		pluginArgs = append(pluginArgs, "--location-selectors="+locationSelector)
 	}
 
-	RunKcpCliPlugin(t, w.kubeconfigPath, pluginArgs)
+	RunTMCCliPlugin(t, w.kubeconfigPath, pluginArgs)
 }
 
 func WithPlacementNameBindOption(placementName string) BindComputeOption {

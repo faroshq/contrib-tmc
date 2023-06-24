@@ -194,7 +194,7 @@ func (sf *syncerFixture) CreateSyncTargetAndApplyToDownstream(t *testing.T) *app
 		pluginArgs = append(pluginArgs, fmt.Sprintf("--labels=%s=%s", k, v))
 	}
 
-	syncerYAML := RunKcpCliPlugin(t, kubeconfigPath, pluginArgs)
+	syncerYAML := RunTMCCliPlugin(t, kubeconfigPath, pluginArgs)
 
 	var downstreamConfig *rest.Config
 	var downstreamKubeconfigPath string

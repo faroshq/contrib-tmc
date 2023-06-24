@@ -31,26 +31,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// KcpCliPluginCommand returns the cli args to run the workspace plugin directly or
+// TmcCliPluginCommand returns the cli args to run the workspace plugin directly or
 // via go run (depending on whether NO_GORUN is set).
-func KcpCliPluginCommand() []string {
+func TmcCliPluginCommand() []string {
 	if NoGoRunEnvSet() {
-		return []string{"kubectl", "kcp"}
+		return []string{"kubectl", "tmc"}
 	} else {
-		cmdPath := filepath.Join(RepositoryDir(), "cmd", "kubectl-kcp")
+		cmdPath := filepath.Join(RepositoryDir(), "cmd", "kubectl-tmc")
 		return []string{"go", "run", cmdPath}
 	}
 }
 
-// RunKcpCliPlugin runs the kcp workspace plugin with the provided subcommand and
+// RunTMCCliPlugin runs the tmc workspace plugin with the provided subcommand and
 // returns the combined stderr and stdout output.
-func RunKcpCliPlugin(t *testing.T, kubeconfigPath string, subcommand []string) []byte {
+func RunTMCCliPlugin(t *testing.T, kubeconfigPath string, subcommand []string) []byte {
 	t.Helper()
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	t.Cleanup(cancelFunc)
 
-	cmdParts := append(KcpCliPluginCommand(), subcommand...)
+	cmdParts := append(TmcCliPluginCommand(), subcommand...)
 	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
 
 	cmd.Env = os.Environ()
