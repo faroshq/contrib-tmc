@@ -19,6 +19,7 @@ package server
 import (
 	"context"
 	_ "net/http/pprof"
+	"os"
 	"time"
 
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
@@ -67,51 +68,28 @@ func (s *Server) Run(ctx context.Context) error {
 		logger.WithValues("controllers", enabled).Info("starting controllers individually")
 	}
 
-	kcpBootstrapHook := "kcpBootstrap"
-	if err := s.Core.AddPostStartHook(kcpBootstrapHook, func(hookContext genericapiserver.PostStartHookContext) error {
-		logger := logger.WithValues("postStartHook", kcpBootstrapHook)
-		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
-			// the root ws is only present on the root shard
-			logger.Info("waiting to bootstrap root kcp assets until root phase1 is complete")
-			s.Core.WaitForPhase1Finished()
+	hookName := "tmc-start-informers"
+	if err := s.Core.AddPostStartHook(hookName, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", hookName)
+		ctx = klog.NewContext(ctx, logger)
 
-			logger.Info("starting bootstrapping root kcp assets")
-			if err := configkcp.Bootstrap(goContext(hookContext),
-				s.Core.KcpClusterClient.Cluster(core.RootCluster.Path()),
-				s.Core.ApiExtensionsClusterClient.Cluster(core.RootCluster.Path()).Discovery(),
-				s.Core.DynamicClusterClient.Cluster(core.RootCluster.Path()),
-				sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
-			); err != nil {
-				logger.Error(err, "failed to bootstrap root kcp assets")
-				return nil // don't klog.Fatal. This only happens when context is cancelled.
-			}
-			logger.Info("finished bootstrapping root kcp assets")
+		logger.Info("starting tmc informers")
+		s.TmcSharedInformerFactory.Start(hookContext.StopCh)
+		s.CacheTmcSharedInformerFactory.Start(hookContext.StopCh)
+
+		s.TmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh)
+		s.CacheTmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh)
+
+		s.Core.WaitForSync(hookContext.StopCh)
+		os.Exit(1)
+
+		select {
+		case <-hookContext.StopCh:
+			return nil // context closed, avoid reporting success below
+		default:
 		}
-		return nil
-	}); err != nil {
-		return err
-	}
 
-	// bootstrap root compute workspace
-	computeBootstrapHookName := "rootComputeBootstrap"
-	if err := s.Core.AddPostStartHook(computeBootstrapHookName, func(hookContext genericapiserver.PostStartHookContext) error {
-		logger := logger.WithValues("postStartHook", computeBootstrapHookName)
-		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
-			// the root ws is only present on the root shard
-			logger.Info("waiting to bootstrap root compute workspace until root phase1 is complete")
-			s.Core.WaitForPhase1Finished()
-
-			logger.Info("starting bootstrapping root compute workspace")
-			if err := configrootcompute.Bootstrap(goContext(hookContext),
-				s.Core.BootstrapApiExtensionsClusterClient,
-				s.Core.BootstrapDynamicClusterClient,
-				sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
-			); err != nil {
-				logger.Error(err, "failed to bootstrap root compute workspace")
-				return nil // don't klog.Fatal. This only happens when context is cancelled.
-			}
-			logger.Info("finished bootstrapping root compute workspace")
-		}
+		logger.Info("finished starting tmc informers")
 		return nil
 	}); err != nil {
 		return err
@@ -163,6 +141,56 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 	if err := s.installWorkloadDefaultLocationController(ctx, controllerConfig); err != nil {
+		return err
+	}
+
+	kcpBootstrapHook := "kcpBootstrap"
+	if err := s.Core.AddPostStartHook(kcpBootstrapHook, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", kcpBootstrapHook)
+		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
+			// the root ws is only present on the root shard
+			logger.Info("waiting to bootstrap root kcp assets until root phase1 is complete")
+			s.Core.WaitForPhase1Finished()
+
+			logger.Info("starting bootstrapping root kcp assets")
+			if err := configkcp.Bootstrap(goContext(hookContext),
+				s.Core.KcpClusterClient.Cluster(core.RootCluster.Path()),
+				s.Core.ApiExtensionsClusterClient.Cluster(core.RootCluster.Path()).Discovery(),
+				s.Core.DynamicClusterClient.Cluster(core.RootCluster.Path()),
+				sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
+			); err != nil {
+				logger.Error(err, "failed to bootstrap root kcp assets")
+				return nil // don't klog.Fatal. This only happens when context is cancelled.
+			}
+			logger.Info("finished bootstrapping root kcp assets")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// bootstrap root compute workspace
+	computeBootstrapHookName := "rootComputeBootstrap"
+	if err := s.Core.AddPostStartHook(computeBootstrapHookName, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", computeBootstrapHookName)
+		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
+			// the root ws is only present on the root shard
+			logger.Info("waiting to bootstrap root compute workspace until root phase1 is complete")
+			s.Core.WaitForPhase1Finished()
+
+			logger.Info("starting bootstrapping root compute workspace")
+			if err := configrootcompute.Bootstrap(goContext(hookContext),
+				s.Core.BootstrapApiExtensionsClusterClient,
+				s.Core.BootstrapDynamicClusterClient,
+				sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
+			); err != nil {
+				logger.Error(err, "failed to bootstrap root compute workspace")
+				return nil // don't klog.Fatal. This only happens when context is cancelled.
+			}
+			logger.Info("finished bootstrapping root compute workspace")
+		}
+		return nil
+	}); err != nil {
 		return err
 	}
 

@@ -23,7 +23,9 @@ import (
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
 	corevwoptions "github.com/kcp-dev/kcp/pkg/virtual/options"
 
+	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/genericcontrolplane/apis"
 
 	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
 	tmcinformers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions"
@@ -33,7 +35,9 @@ import (
 type Config struct {
 	Options options.CompletedOptions
 
-	Core *coreserver.Config
+	Core          *coreserver.Config
+	GenericConfig *genericapiserver.Config // the config embedded into MiniAggregator, the head of the delegation chain
+	Apis          *apis.Config
 
 	ExtraConfig
 }
@@ -76,14 +80,15 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		return nil, err
 	}
 
-	informerConfig := rest.CopyConfig(core.GenericConfig.LoopbackClientConfig)
+	// reuse the kcp IdentityConfig as it does resolution ingithub.com/kcp-dev/kcp/pkg/server/config.go
+	informerConfig := rest.CopyConfig(core.IdentityConfig)
 	informerConfig.UserAgent = "tmc-informers"
-	informerKcpClient, err := tmcclientset.NewForConfig(informerConfig)
+	informerTmcClient, err := tmcclientset.NewForConfig(informerConfig)
 	if err != nil {
 		return nil, err
 	}
 	tmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
-		informerKcpClient,
+		informerTmcClient,
 		resyncPeriod,
 	)
 
@@ -91,13 +96,13 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	cacheKcpClusterClient, err := tmcclientset.NewForConfig(cacheClientConfig)
+	cacheTmcClusterClient, err := tmcclientset.NewForConfig(cacheClientConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	cacheTmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
-		cacheKcpClusterClient,
+		cacheTmcClusterClient,
 		resyncPeriod,
 	)
 
@@ -130,6 +135,11 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 			CacheTmcSharedInformerFactory: cacheTmcSharedInformerFactory,
 		},
 	}
+
+	//admissionPluginInitializers := []admission.PluginInitializer{
+	//	tmcadmissioninitializers.NewTmcInformersInitializer(c.TmcSharedInformerFactory, c.CacheTmcSharedInformerFactory),
+	//	tmcadmissioninitializers.NewTmcClusterClientInitializer(cacheTmcClusterClient),
+	//}
 
 	return c, nil
 }

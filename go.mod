@@ -72,7 +72,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
-	github.com/mattn/go-runewidth v0.0.7 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
@@ -90,6 +90,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
@@ -114,7 +115,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.10.0 // indirect
 	go.opentelemetry.io/otel/trace v1.10.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
-	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
+	go.starlark.net v0.0.0-20220816155156-cfacd8902214 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.19.0 // indirect

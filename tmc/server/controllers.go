@@ -48,7 +48,7 @@ import (
 )
 
 func postStartHookName(controllerName string) string {
-	return fmt.Sprintf("kcp-tmc-start-%s", controllerName)
+	return fmt.Sprintf("tmc-start-%s", controllerName)
 }
 
 func (s *Server) installWorkloadResourceScheduler(ctx context.Context, config *rest.Config) error {
@@ -157,7 +157,7 @@ func (s *Server) installSyncTargetHeartbeatController(ctx context.Context, confi
 }
 
 func (s *Server) installSchedulingLocationStatusController(ctx context.Context, config *rest.Config) error {
-	controllerName := "kcp-tmc-scheduling-location-status-controller"
+	controllerName := "tmc-scheduling-location-status-controller"
 	config = rest.CopyConfig(config)
 	config = rest.AddUserAgent(config, controllerName)
 
