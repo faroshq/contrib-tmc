@@ -46,7 +46,7 @@ const ControllerName = "kcp-synctarget-heartbeat"
 type Controller struct {
 	queue              workqueue.RateLimitingInterface
 	kcpClusterClient   kcpclientset.ClusterInterface
-	tmcClient          tmcclientset.ClusterInterface
+	tmcClusterClient   tmcclientset.ClusterInterface
 	heartbeatThreshold time.Duration
 	commit             CommitFunc
 	getSyncTarget      func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error)
@@ -54,7 +54,7 @@ type Controller struct {
 
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
-	tmcClient tmcclientset.ClusterInterface,
+	tmcClusterClient tmcclientset.ClusterInterface,
 	syncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
 	heartbeatThreshold time.Duration,
 ) (*Controller, error) {
@@ -63,9 +63,9 @@ func NewController(
 	c := &Controller{
 		queue:              queue,
 		kcpClusterClient:   kcpClusterClient,
-		tmcClient:          tmcClient,
+		tmcClusterClient:   tmcClusterClient,
 		heartbeatThreshold: heartbeatThreshold,
-		commit:             committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](tmcClient.WorkloadV1alpha1().SyncTargets()),
+		commit:             committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](tmcClusterClient.WorkloadV1alpha1().SyncTargets()),
 		getSyncTarget: func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error) {
 			return syncTargetInformer.Cluster(clusterName).Lister().Get(name)
 		},

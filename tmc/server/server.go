@@ -18,10 +18,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	_ "net/http/pprof"
 	"os"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
@@ -42,6 +44,8 @@ type Server struct {
 	CompletedConfig
 
 	Core *coreserver.Server
+
+	syncedCh chan struct{}
 }
 
 func NewServer(c CompletedConfig) (*Server, error) {
@@ -53,6 +57,7 @@ func NewServer(c CompletedConfig) (*Server, error) {
 	s := &Server{
 		CompletedConfig: c,
 		Core:            core,
+		syncedCh:        make(chan struct{}),
 	}
 
 	return s, nil
@@ -86,7 +91,10 @@ func (s *Server) Run(ctx context.Context) error {
 		s.TmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh)
 		s.CacheTmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh)
 
-		os.Exit(1) // debug
+		logger.Info("synced all TMC informers, ready to start controllers")
+		close(s.syncedCh)
+		spew.Dump("synced")
+		os.Exit(1)
 
 		select {
 		case <-hookContext.StopCh:
@@ -235,4 +243,16 @@ func goContext(parent genericapiserver.PostStartHookContext) context.Context {
 		cancel()
 	}(parent.StopCh)
 	return ctx
+}
+
+func (s *Server) WaitForSync(stop <-chan struct{}) error {
+	// Wait for shared informer factories to by synced.
+	// factory. Otherwise, informer list calls may go into backoff (before the CRDs are ready) and
+	// take ~10 seconds to succeed.
+	select {
+	case <-stop:
+		return errors.New("timed out waiting for informers to sync")
+	case <-s.syncedCh:
+		return nil
+	}
 }
