@@ -100,7 +100,6 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	cacheTmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
 		cacheTmcClusterClient,
 		resyncPeriod,

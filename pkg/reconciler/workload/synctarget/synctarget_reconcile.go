@@ -19,10 +19,8 @@ package synctarget
 import (
 	"context"
 	"net/url"
-	"os"
 	"path"
 
-	"github.com/davecgh/go-spew/spew"
 	virtualworkspacesoptions "github.com/kcp-dev/kcp/cmd/virtual-workspaces/options"
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
@@ -37,9 +35,6 @@ import (
 func (c *Controller) reconcile(ctx context.Context, syncTarget *workloadv1alpha1.SyncTarget, workspaceShards []*corev1alpha1.Shard) (*workloadv1alpha1.SyncTarget, error) {
 	logger := klog.FromContext(ctx)
 	syncTargetCopy := syncTarget.DeepCopy()
-
-	spew.Dump(syncTargetCopy)
-	os.Exit(1)
 
 	labels := syncTargetCopy.GetLabels()
 	if labels == nil {

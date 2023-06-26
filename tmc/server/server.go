@@ -33,6 +33,7 @@ import (
 
 	configkcp "github.com/kcp-dev/contrib-tmc/config/kcp"
 	configrootcompute "github.com/kcp-dev/contrib-tmc/config/rootcompute"
+	"github.com/kcp-dev/contrib-tmc/tmc/server/bootstrap"
 )
 
 const resyncPeriod = 10 * time.Hour
@@ -68,10 +69,15 @@ func (s *Server) Run(ctx context.Context) error {
 		logger.WithValues("controllers", enabled).Info("starting controllers individually")
 	}
 
-	hookName := "tmc-start-informers"
+	hookName := "tmc-populate-cache-server"
 	if err := s.Core.AddPostStartHook(hookName, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := logger.WithValues("postStartHook", hookName)
 		ctx = klog.NewContext(ctx, logger)
+
+		if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
 
 		logger.Info("starting tmc informers")
 		s.TmcSharedInformerFactory.Start(hookContext.StopCh)
@@ -80,8 +86,7 @@ func (s *Server) Run(ctx context.Context) error {
 		s.TmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh)
 		s.CacheTmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh)
 
-		s.Core.WaitForSync(hookContext.StopCh)
-		os.Exit(1)
+		os.Exit(1) // debug
 
 		select {
 		case <-hookContext.StopCh:
@@ -90,6 +95,23 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 
 		logger.Info("finished starting tmc informers")
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	cacheHookName := "tmc-start-informers"
+	if err := s.Core.AddPostStartHook(cacheHookName, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", cacheHookName)
+		if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		if err := bootstrap.Bootstrap(klog.NewContext(goContext(hookContext), logger), s.Core.ApiExtensionsClusterClient); err != nil {
+			logger.Error(err, "failed creating the static CustomResourcesDefinitions")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
 		return nil
 	}); err != nil {
 		return err
@@ -150,7 +172,10 @@ func (s *Server) Run(ctx context.Context) error {
 		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
 			// the root ws is only present on the root shard
 			logger.Info("waiting to bootstrap root kcp assets until root phase1 is complete")
-			s.Core.WaitForPhase1Finished()
+			if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
+				logger.Error(err, "failed to finish post-start-hook")
+				return nil // don't klog.Fatal. This only happens when context is cancelled.
+			}
 
 			logger.Info("starting bootstrapping root kcp assets")
 			if err := configkcp.Bootstrap(goContext(hookContext),
@@ -176,7 +201,10 @@ func (s *Server) Run(ctx context.Context) error {
 		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
 			// the root ws is only present on the root shard
 			logger.Info("waiting to bootstrap root compute workspace until root phase1 is complete")
-			s.Core.WaitForPhase1Finished()
+			if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
+				logger.Error(err, "failed to finish post-start-hook")
+				return nil // don't klog.Fatal. This only happens when context is cancelled.
+			}
 
 			logger.Info("starting bootstrapping root compute workspace")
 			if err := configrootcompute.Bootstrap(goContext(hookContext),
