@@ -19,10 +19,8 @@ package synctargetexports
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-logr/logr"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	"github.com/kcp-dev/kcp/pkg/indexers"
@@ -87,9 +85,6 @@ func NewController(
 		apiImportLister:      apiResourceImportInformer.Lister(),
 		commit:               committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](tmcClusterClient.WorkloadV1alpha1().SyncTargets()),
 	}
-
-	spew.Dump("commiter")
-	os.Exit(1)
 
 	if err := syncTargetInformer.Informer().AddIndexers(cache.Indexers{
 		indexSyncTargetsByExport: indexSyncTargetsByExports,

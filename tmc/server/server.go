@@ -18,7 +18,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -45,7 +44,7 @@ type Server struct {
 
 	Core *coreserver.Server
 
-	syncedCh chan struct{}
+	//syncedCh chan struct{}
 }
 
 func NewServer(c CompletedConfig) (*Server, error) {
@@ -57,7 +56,7 @@ func NewServer(c CompletedConfig) (*Server, error) {
 	s := &Server{
 		CompletedConfig: c,
 		Core:            core,
-		syncedCh:        make(chan struct{}),
+		//syncedCh:        make(chan struct{}),
 	}
 
 	return s, nil
@@ -74,15 +73,12 @@ func (s *Server) Run(ctx context.Context) error {
 		logger.WithValues("controllers", enabled).Info("starting controllers individually")
 	}
 
-	hookName := "tmc-populate-cache-server"
+	hookName := "tmc-start-informers"
 	if err := s.Core.AddPostStartHook(hookName, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := logger.WithValues("postStartHook", hookName)
 		ctx = klog.NewContext(ctx, logger)
 
-		if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
-			logger.Error(err, "failed to finish post-start-hook")
-			return nil // don't klog.Fatal. This only happens when context is cancelled.
-		}
+		s.Core.WaitForPhase1Finished()
 
 		logger.Info("starting tmc informers")
 		s.TmcSharedInformerFactory.Start(hookContext.StopCh)
@@ -92,7 +88,7 @@ func (s *Server) Run(ctx context.Context) error {
 		s.CacheTmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh)
 
 		logger.Info("synced all TMC informers, ready to start controllers")
-		close(s.syncedCh)
+		//close(s.syncedCh)
 		spew.Dump("synced")
 		os.Exit(1)
 
@@ -108,13 +104,9 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 
-	cacheHookName := "tmc-start-informers"
+	cacheHookName := "tmc-populate-cache-server"
 	if err := s.Core.AddPostStartHook(cacheHookName, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := logger.WithValues("postStartHook", cacheHookName)
-		if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
-			logger.Error(err, "failed to finish post-start-hook")
-			return nil // don't klog.Fatal. This only happens when context is cancelled.
-		}
 
 		if err := bootstrap.Bootstrap(klog.NewContext(goContext(hookContext), logger), s.Core.ApiExtensionsClusterClient); err != nil {
 			logger.Error(err, "failed creating the static CustomResourcesDefinitions")
@@ -179,12 +171,6 @@ func (s *Server) Run(ctx context.Context) error {
 		logger := logger.WithValues("postStartHook", kcpBootstrapHook)
 		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
 			// the root ws is only present on the root shard
-			logger.Info("waiting to bootstrap root kcp assets until root phase1 is complete")
-			if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
-				logger.Error(err, "failed to finish post-start-hook")
-				return nil // don't klog.Fatal. This only happens when context is cancelled.
-			}
-
 			logger.Info("starting bootstrapping root kcp assets")
 			if err := configkcp.Bootstrap(goContext(hookContext),
 				s.Core.KcpClusterClient.Cluster(core.RootCluster.Path()),
@@ -208,11 +194,6 @@ func (s *Server) Run(ctx context.Context) error {
 		logger := logger.WithValues("postStartHook", computeBootstrapHookName)
 		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
 			// the root ws is only present on the root shard
-			logger.Info("waiting to bootstrap root compute workspace until root phase1 is complete")
-			if err := s.Core.WaitForSync(hookContext.StopCh); err != nil {
-				logger.Error(err, "failed to finish post-start-hook")
-				return nil // don't klog.Fatal. This only happens when context is cancelled.
-			}
 
 			logger.Info("starting bootstrapping root compute workspace")
 			if err := configrootcompute.Bootstrap(goContext(hookContext),
@@ -243,16 +224,4 @@ func goContext(parent genericapiserver.PostStartHookContext) context.Context {
 		cancel()
 	}(parent.StopCh)
 	return ctx
-}
-
-func (s *Server) WaitForSync(stop <-chan struct{}) error {
-	// Wait for shared informer factories to by synced.
-	// factory. Otherwise, informer list calls may go into backoff (before the CRDs are ready) and
-	// take ~10 seconds to succeed.
-	select {
-	case <-stop:
-		return errors.New("timed out waiting for informers to sync")
-	case <-s.syncedCh:
-		return nil
-	}
 }
