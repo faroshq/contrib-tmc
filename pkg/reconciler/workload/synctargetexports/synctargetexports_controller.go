@@ -55,7 +55,7 @@ import (
 )
 
 const (
-	ControllerName = "kcp-synctarget-export-controller"
+	ControllerName = "tmc-synctarget-export-controller"
 
 	indexSyncTargetsByExport           = ControllerName + "ByExport"
 	indexAPIExportsByAPIResourceSchema = ControllerName + "ByAPIResourceSchema"
@@ -83,8 +83,10 @@ func NewController(
 		},
 		getAPIResourceSchema: informer.NewScopedGetterWithFallback[*apisv1alpha1.APIResourceSchema, apisv1alpha1listers.APIResourceSchemaLister](apiResourceSchemaInformer.Lister(), globalAPIResourceSchemaInformer.Lister()),
 		apiImportLister:      apiResourceImportInformer.Lister(),
-		commit:               committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](tmcClusterClient.WorkloadV1alpha1().SyncTargets()),
 	}
+
+	// trigger informer syncs
+	c.tmcClusterClient.WorkloadV1alpha1().SyncTargets()
 
 	if err := syncTargetInformer.Informer().AddIndexers(cache.Indexers{
 		indexSyncTargetsByExport: indexSyncTargetsByExports,
@@ -255,6 +257,8 @@ func (c *Controller) enqueueAPIResourceSchema(obj interface{}, logger logr.Logge
 func (c *Controller) Start(ctx context.Context, numThreads int) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
+
+	c.commit = committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](c.tmcClusterClient.WorkloadV1alpha1().SyncTargets())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), ControllerName)
 	ctx = klog.NewContext(ctx, logger)

@@ -41,7 +41,7 @@ import (
 	workloadv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/workload/v1alpha1"
 )
 
-const ControllerName = "kcp-synctarget-heartbeat"
+const ControllerName = "tmc-synctarget-heartbeat"
 
 type Controller struct {
 	queue              workqueue.RateLimitingInterface
@@ -65,7 +65,6 @@ func NewController(
 		kcpClusterClient:   kcpClusterClient,
 		tmcClusterClient:   tmcClusterClient,
 		heartbeatThreshold: heartbeatThreshold,
-		commit:             committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](tmcClusterClient.WorkloadV1alpha1().SyncTargets()),
 		getSyncTarget: func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error) {
 			return syncTargetInformer.Cluster(clusterName).Lister().Get(name)
 		},
@@ -101,6 +100,8 @@ func (c *Controller) enqueue(obj interface{}) {
 func (c *Controller) Start(ctx context.Context) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
+
+	c.commit = committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](c.tmcClusterClient.WorkloadV1alpha1().SyncTargets())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), ControllerName)
 	ctx = klog.NewContext(ctx, logger)

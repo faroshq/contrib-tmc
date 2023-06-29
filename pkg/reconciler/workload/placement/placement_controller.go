@@ -110,8 +110,6 @@ func NewController(
 		placementIndexer: placementInformer.Informer().GetIndexer(),
 
 		apiBindingLister: apiBindingInformer.Lister(),
-
-		commit: committer.NewCommitter[*Placement, Patcher, *PlacementSpec, *PlacementStatus](tmcClient.SchedulingV1alpha1().Placements()),
 	}
 
 	if err := placementInformer.Informer().AddIndexers(cache.Indexers{
@@ -320,6 +318,8 @@ func (c *controller) enqueueSyncTarget(obj interface{}, logger logr.Logger) {
 func (c *controller) Start(ctx context.Context, numThreads int) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
+
+	c.commit = committer.NewCommitter[*Placement, Patcher, *PlacementSpec, *PlacementStatus](c.tmcClient.SchedulingV1alpha1().Placements())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), ControllerName)
 	ctx = klog.NewContext(ctx, logger)

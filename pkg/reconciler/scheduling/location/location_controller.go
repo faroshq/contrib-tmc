@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	controllerName = "kcp-scheduling-location-status"
+	controllerName = "tmc-scheduling-location-status"
 )
 
 // NewController returns a new controller reconciling location status.
@@ -73,8 +73,9 @@ func NewController(
 		tmcClient:        tmcClient,
 		locationLister:   locationInformer.Lister(),
 		syncTargetLister: syncTargetInformer.Lister(),
-		commit:           committer.NewCommitter[*Location, Patcher, *LocationSpec, *LocationStatus](tmcClient.SchedulingV1alpha1().Locations()),
 	}
+
+	tmcClient.SchedulingV1alpha1().Locations()
 
 	_, _ = locationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(obj interface{}) { c.enqueueLocation(obj) },
@@ -178,6 +179,8 @@ func (c *controller) enqueueSyncTarget(obj interface{}) {
 func (c *controller) Start(ctx context.Context, numThreads int) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
+
+	c.commit = committer.NewCommitter[*Location, Patcher, *LocationSpec, *LocationStatus](c.tmcClient.SchedulingV1alpha1().Locations())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), controllerName)
 	ctx = klog.NewContext(ctx, logger)

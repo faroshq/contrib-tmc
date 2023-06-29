@@ -72,8 +72,7 @@ func NewController(
 		listPlacements: func(clusterName logicalcluster.Name) ([]*schedulingv1alpha1.Placement, error) {
 			return placementInformer.Cluster(clusterName).Lister().List(labels.Everything())
 		},
-		commit: committer.NewCommitter[*Namespace, Patcher, *NamespaceSpec, *NamespaceStatus](kubeClusterClient.CoreV1().Namespaces()),
-		now:    time.Now,
+		now: time.Now,
 	}
 
 	// namespaceBlocklist holds a set of namespaces that should never be synced from kcp to physical clusters.
@@ -173,6 +172,8 @@ func (c *controller) enqueuePlacement(obj interface{}) {
 func (c *controller) Start(ctx context.Context, numThreads int) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
+
+	c.commit = committer.NewCommitter[*Namespace, Patcher, *NamespaceSpec, *NamespaceStatus](c.kubeClusterClient.CoreV1().Namespaces())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), ControllerName)
 	ctx = klog.NewContext(ctx, logger)
