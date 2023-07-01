@@ -18,9 +18,12 @@ package synctargetexports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-logr/logr"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	"github.com/kcp-dev/kcp/pkg/indexers"
@@ -36,9 +39,11 @@ import (
 	apiresourcev1alpha1listers "github.com/kcp-dev/kcp/sdk/client/listers/apiresource/v1alpha1"
 	apisv1alpha1listers "github.com/kcp-dev/kcp/sdk/client/listers/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -342,11 +347,39 @@ func (c *Controller) process(ctx context.Context, key string) error {
 		errs = append(errs, err)
 	}
 
-	// If the object being reconciled changed as a result, update it.
-	oldResource := &Resource{ObjectMeta: syncTarget.ObjectMeta, Spec: &syncTarget.Spec, Status: &syncTarget.Status}
-	newResource := &Resource{ObjectMeta: currentSyncTarget.ObjectMeta, Spec: &currentSyncTarget.Spec, Status: &currentSyncTarget.Status}
-	if err := c.commit(ctx, oldResource, newResource); err != nil {
-		errs = append(errs, err)
+	currentSyncTargetJSON, err := json.Marshal(syncTarget)
+	if err != nil {
+		logger.Error(err, "failed to marshal syncTarget")
+		return err
+	}
+	newSyncTargetJSON, err := json.Marshal(currentSyncTarget)
+	if err != nil {
+		logger.Error(err, "failed to marshal syncTarget")
+		return err
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(currentSyncTargetJSON, newSyncTargetJSON)
+	if err != nil {
+		logger.Error(err, "failed to create merge patch for syncTarget")
+		return err
+	}
+
+	// current - new
+	// synctarget - old
+	if !reflect.DeepEqual(currentSyncTarget.ObjectMeta, syncTarget.ObjectMeta) || !reflect.DeepEqual(currentSyncTarget.Spec, syncTarget.Spec) {
+		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget")
+		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+			logger.Error(err, "failed to patch sync target")
+			return err
+		}
+	}
+
+	if !reflect.DeepEqual(currentSyncTarget.Status, syncTarget.Status) {
+		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget status")
+		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status"); err != nil {
+			logger.Error(err, "failed to patch sync target status")
+			return err
+		}
 	}
 
 	return errors.NewAggregate(errs)

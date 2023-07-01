@@ -18,16 +18,21 @@ package heartbeat
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	"github.com/kcp-dev/kcp/pkg/logging"
 	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/logicalcluster/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -36,7 +41,7 @@ import (
 	"k8s.io/klog/v2"
 
 	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
-	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
+	tmcworkloadclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster/typed/workload/v1alpha1"
 	workloadv1alpha1client "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/typed/workload/v1alpha1"
 	workloadv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/workload/v1alpha1"
 )
@@ -44,27 +49,27 @@ import (
 const ControllerName = "tmc-synctarget-heartbeat"
 
 type Controller struct {
-	queue              workqueue.RateLimitingInterface
-	kcpClusterClient   kcpclientset.ClusterInterface
-	tmcClusterClient   tmcclientset.ClusterInterface
-	heartbeatThreshold time.Duration
-	commit             CommitFunc
-	getSyncTarget      func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error)
+	queue                    workqueue.RateLimitingInterface
+	kcpClusterClient         kcpclientset.ClusterInterface
+	tmcWorkloadClusterClient tmcworkloadclientset.WorkloadV1alpha1ClusterInterface
+	heartbeatThreshold       time.Duration
+	commit                   CommitFunc
+	getSyncTarget            func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error)
 }
 
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
-	tmcClusterClient tmcclientset.ClusterInterface,
+	tmcWorkloadClusterClient tmcworkloadclientset.WorkloadV1alpha1ClusterInterface,
 	syncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
 	heartbeatThreshold time.Duration,
 ) (*Controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), ControllerName)
 
 	c := &Controller{
-		queue:              queue,
-		kcpClusterClient:   kcpClusterClient,
-		tmcClusterClient:   tmcClusterClient,
-		heartbeatThreshold: heartbeatThreshold,
+		queue:                    queue,
+		kcpClusterClient:         kcpClusterClient,
+		tmcWorkloadClusterClient: tmcWorkloadClusterClient,
+		heartbeatThreshold:       heartbeatThreshold,
 		getSyncTarget: func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error) {
 			return syncTargetInformer.Cluster(clusterName).Lister().Get(name)
 		},
@@ -101,7 +106,7 @@ func (c *Controller) Start(ctx context.Context) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
 
-	c.commit = committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](c.tmcClusterClient.WorkloadV1alpha1().SyncTargets())
+	c.commit = committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](c.tmcWorkloadClusterClient.SyncTargets())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), ControllerName)
 	ctx = klog.NewContext(ctx, logger)
@@ -171,11 +176,69 @@ func (c *Controller) process(ctx context.Context, key string) error {
 		errs = append(errs, err)
 	}
 
-	oldResource := &Resource{ObjectMeta: previous.ObjectMeta, Spec: &previous.Spec, Status: &previous.Status}
-	newResource := &Resource{ObjectMeta: current.ObjectMeta, Spec: &current.Spec, Status: &current.Status}
-	if err := c.commit(ctx, oldResource, newResource); err != nil {
+	if err := c.patchIfNeeded(ctx, previous, current); err != nil {
 		errs = append(errs, err)
 	}
 
 	return utilerrors.NewAggregate(errs)
+}
+
+func (c *Controller) patchIfNeeded(ctx context.Context, old, obj *workloadv1alpha1.SyncTarget) error {
+	specOrObjectMetaChanged := !equality.Semantic.DeepEqual(old.Spec, obj.Spec) || !equality.Semantic.DeepEqual(old.ObjectMeta, obj.ObjectMeta)
+	statusChanged := !equality.Semantic.DeepEqual(old.Status, obj.Status)
+
+	if specOrObjectMetaChanged && statusChanged {
+		panic("Programmer error: spec and status changed in same reconcile iteration")
+	}
+
+	if !specOrObjectMetaChanged && !statusChanged {
+		return nil
+	}
+
+	clusterSyncTargetForPatch := func(synctarget *workloadv1alpha1.SyncTarget) workloadv1alpha1.SyncTarget {
+		var ret workloadv1alpha1.SyncTarget
+		if specOrObjectMetaChanged {
+			ret.ObjectMeta = synctarget.ObjectMeta
+			ret.Spec = synctarget.Spec
+		} else {
+			ret.Status = synctarget.Status
+		}
+		return ret
+	}
+
+	clusterName := logicalcluster.From(old)
+	name := old.Name
+
+	oldForPatch := clusterSyncTargetForPatch(old)
+	// to ensure they appear in the patch as preconditions
+	oldForPatch.UID = ""
+	oldForPatch.ResourceVersion = ""
+
+	oldData, err := json.Marshal(oldForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal old data for Workspace %s|%s: %w", clusterName, name, err)
+	}
+
+	newForPatch := clusterSyncTargetForPatch(obj)
+	// to ensure they appear in the patch as preconditions
+	newForPatch.UID = old.UID
+	newForPatch.ResourceVersion = old.ResourceVersion
+
+	newData, err := json.Marshal(newForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal new data for Workspaces %s|%s: %w", clusterName, name, err)
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
+	if err != nil {
+		return fmt.Errorf("failed to create patch for Workspaces %s|%s: %w", clusterName, name, err)
+	}
+
+	var subresources []string
+	if statusChanged {
+		subresources = []string{"status"}
+	}
+
+	_, err = c.tmcWorkloadClusterClient.Cluster(clusterName.Path()).SyncTargets().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, subresources...)
+	return err
 }

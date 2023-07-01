@@ -222,7 +222,10 @@ func (c *Controller) process(ctx context.Context, key string) error {
 		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status"); err != nil {
 			logger.Error(err, "failed to patch sync target status")
 			return err
+		} else {
+			logger.Info("patched sync target status")
 		}
+
 	}
 
 	return nil
