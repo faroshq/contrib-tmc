@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
-
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/klog"
 )
 
 var (
@@ -41,17 +41,17 @@ func (s *Server) configureTMCVWConfig(ctx context.Context) error {
 	}
 
 	// wait for scheduling.kcp.io to be available
-	//if err := wait.PollImmediateInfinite(time.Second*5, func() (bool, error) {
-	//	klog.Infof("looking up virtual workspace URL - %s", schedulingAPIExportName)
-	//	var err error
-	//	s.schedulingRestConfig, err = s.restConfigForAPIExport(ctx, schedulingAPIExportName)
-	//	if err != nil {
-	//		return false, nil
-	//	}
-	//	return true, nil
-	//}); err != nil {
-	//	return err
-	//}
+	if err := wait.PollImmediateInfinite(time.Second*5, func() (bool, error) {
+		klog.Infof("looking up virtual workspace URL - %s", schedulingAPIExportName)
+		var err error
+		s.schedulingRestConfig, err = s.restConfigForAPIExport(ctx, schedulingAPIExportName)
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	}); err != nil {
+		return err
+	}
 
 	return nil
 }

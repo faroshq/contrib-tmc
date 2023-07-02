@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kcp-dev/kcp/pkg/logging"
+
 	crdhelpers "k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extensionsapiserver "k8s.io/apiextensions-apiserver/pkg/apiserver"
@@ -37,8 +39,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
-
-	"github.com/kcp-dev/kcp/pkg/logging"
 )
 
 //go:embed *.yaml

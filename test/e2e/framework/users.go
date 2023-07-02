@@ -22,13 +22,12 @@ import (
 	"testing"
 
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	"github.com/kcp-dev/kcp/pkg/authorization/bootstrap"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/kcp-dev/kcp/pkg/authorization/bootstrap"
 )
 
 // AdmitWorkspaceAccess create RBAC rules that allow the given users and/or groups to access the given workspace, optionally as admin.

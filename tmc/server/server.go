@@ -101,30 +101,19 @@ func (s *Server) Run(ctx context.Context) error {
 		logger := logger.WithValues("postStartHook", hookName)
 		ctx = klog.NewContext(ctx, logger)
 
-		err := s.Core.WaitForSync(hookContext.StopCh)
-		if err != nil {
-			logger.Error(err, "failed to wait for sync")
-			return err
-		}
-
-		err = s.WaitForSyncPhase1(hookContext.StopCh)
+		err := s.WaitForSyncPhase1(hookContext.StopCh)
 		if err != nil {
 			logger.Error(err, "failed to wait for phase1 sync")
 			return err
 		}
 
+		// Poke the informers to start syncing
+		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets()
+
 		logger.Info("starting tmc informers")
 		s.TmcSharedInformerFactory.Start(hookContext.StopCh)
-		s.CacheTmcSharedInformerFactory.Start(hookContext.StopCh)
 
 		for v, synced := range s.TmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
-			if !synced {
-				logger.Error(nil, "Error syncing informer", "informer", v)
-				return fmt.Errorf("failed to sync informer %s", v)
-			}
-			logger.Info("synced informer", "informer", v)
-		}
-		for v, synced := range s.CacheTmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
 			if !synced {
 				logger.Error(nil, "Error syncing informer", "informer", v)
 				return fmt.Errorf("failed to sync informer %s", v)
@@ -150,21 +139,21 @@ func (s *Server) Run(ctx context.Context) error {
 	tmcBootstrapHook := "tmcBootstrap"
 	if err := s.Core.AddPostStartHook(tmcBootstrapHook, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := logger.WithValues("postStartHook", tmcBootstrapHook)
-		err := s.Core.WaitForSync(hookContext.StopCh)
+		err := s.WaitForSyncPhase2(hookContext.StopCh)
 		if err != nil {
 			logger.Error(err, "failed to wait for sync")
 			return nil
 		}
 		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
 			// the root ws is only present on the root shard
-			logger.Info("starting bootstrapping root kcp assets")
+			logger.Info("starting bootstrapping root tmc assets")
 			if err := configtmc.Bootstrap(goContext(hookContext),
 				s.Core.BootstrapApiExtensionsClusterClient,
 				s.Core.BootstrapDynamicClusterClient,
 				sets.New[string](s.Core.Options.Extra.BatteriesIncluded...),
 			); err != nil {
 				logger.Error(err, "failed to bootstrap root kcp assets")
-				return nil // don't klog.Fatal. This only happens when context is cancelled.
+				return nil // don't klog.Fatal. This only tmc when context is cancelled.
 			}
 			logger.Info("finished bootstrapping root kcp assets")
 			// Set clients for virtual workspaces to use in controllers
@@ -182,9 +171,6 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	// TODO(marun) Consider enabling each controller via a separate flag
-	if err := s.installApiResourceController(ctx); err != nil {
-		return err
-	}
 	if err := s.installSyncTargetHeartbeatController(ctx); err != nil {
 		return err
 	}
@@ -194,38 +180,33 @@ func (s *Server) Run(ctx context.Context) error {
 	if err := s.installWorkloadSyncTargetExportController(ctx); err != nil {
 		return err
 	}
-
-	if err := s.installWorkloadReplicateClusterRoleControllers(ctx); err != nil {
-		return err
-	}
-
-	if err := s.installWorkloadReplicateClusterRoleBindingControllers(ctx); err != nil {
-		return err
-	}
-
-	if err := s.installWorkloadReplicateLogicalClusterControllers(ctx); err != nil {
-		return err
-	}
-
-	if err := s.installWorkloadResourceScheduler(ctx); err != nil {
-		return err
-	}
-
-	if err := s.installWorkloadNamespaceScheduler(ctx); err != nil {
-		return err
-	}
-	if err := s.installWorkloadPlacementScheduler(ctx); err != nil {
-		return err
-	}
-	if err := s.installSchedulingLocationStatusController(ctx); err != nil {
-		return err
-	}
-	if err := s.installSchedulingPlacementController(ctx); err != nil {
-		return err
-	}
-	if err := s.installWorkloadAPIExportController(ctx); err != nil {
-		return err
-	}
+	//	if err := s.installWorkloadReplicateClusterRoleControllers(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installWorkloadReplicateClusterRoleBindingControllers(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installWorkloadReplicateLogicalClusterControllers(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installWorkloadResourceScheduler(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installWorkloadNamespaceScheduler(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installWorkloadPlacementScheduler(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installSchedulingLocationStatusController(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installSchedulingPlacementController(ctx); err != nil {
+	//		return err
+	//	}
+	//	if err := s.installWorkloadAPIExportController(ctx); err != nil {
+	//		return err
+	//	}
 	if err := s.installWorkloadDefaultLocationController(ctx); err != nil {
 		return err
 	}

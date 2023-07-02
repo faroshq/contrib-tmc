@@ -21,10 +21,10 @@ import (
 	"embed"
 	"testing"
 
+	"github.com/kcp-dev/kcp/sdk/apis/tenancy"
+
 	apiextensionsv1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/kcp-dev/kcp/sdk/apis/tenancy"
 )
 
 func TestCreateFromFS(t *testing.T) {

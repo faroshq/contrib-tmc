@@ -51,7 +51,7 @@ func BuildVirtualWorkspace(
 	kubeClusterClient kcpkubernetesclientset.ClusterInterface,
 	dynamicClusterClient kcpdynamic.ClusterInterface,
 	cachedKCPInformers kcpinformers.SharedInformerFactory,
-	cachedTMCInformers tmcinformers.SharedInformerFactory,
+	tmcinformers tmcinformers.SharedInformerFactory,
 ) []rootapiserver.NamedVirtualWorkspace {
 	if !strings.HasSuffix(rootPathPrefix, "/") {
 		rootPathPrefix += "/"
@@ -59,8 +59,7 @@ func BuildVirtualWorkspace(
 
 	// Setup the APIReconciler indexes to share between both virtualworkspaces.
 	indexers.AddIfNotPresentOrDie(
-		// TODO(FGI) a tmcinformer is needed instead
-		cachedTMCInformers.Workload().V1alpha1().SyncTargets().Informer().GetIndexer(),
+		tmcinformers.Workload().V1alpha1().SyncTargets().Informer().GetIndexer(),
 		cache.Indexers{
 			apireconciler.IndexSyncTargetsByExport: apireconciler.IndexSyncTargetsByExports,
 		},
@@ -76,7 +75,7 @@ func BuildVirtualWorkspace(
 		kubeClusterClient:    kubeClusterClient,
 		dynamicClusterClient: dynamicClusterClient,
 		cachedKCPInformers:   cachedKCPInformers,
-		cachedTMCInformers:   cachedTMCInformers,
+		tmcInformers:         tmcinformers,
 		rootPathPrefix:       rootPathPrefix,
 	}
 

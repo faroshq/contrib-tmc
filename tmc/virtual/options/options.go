@@ -56,9 +56,9 @@ func (o *Options) NewVirtualWorkspaces(
 	rootPathPrefix string,
 	shardExternalURL func() string,
 	cachedKcpInformers kcpinformers.SharedInformerFactory,
-	cachedTmcInformers tmcinformers.SharedInformerFactory,
+	tmcInformers tmcinformers.SharedInformerFactory,
 ) ([]rootapiserver.NamedVirtualWorkspace, error) {
-	syncer, err := o.Syncer.NewVirtualWorkspaces(rootPathPrefix, shardExternalURL, config, cachedKcpInformers, cachedTmcInformers)
+	syncer, err := o.Syncer.NewVirtualWorkspaces(rootPathPrefix, shardExternalURL, config, cachedKcpInformers, tmcInformers)
 	if err != nil {
 		return nil, err
 	}

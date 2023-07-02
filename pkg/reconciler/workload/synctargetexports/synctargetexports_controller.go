@@ -29,7 +29,6 @@ import (
 	"github.com/kcp-dev/kcp/pkg/indexers"
 	"github.com/kcp-dev/kcp/pkg/informer"
 	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	apiresourcev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apiresource/v1alpha1"
 	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
@@ -39,9 +38,9 @@ import (
 	apiresourcev1alpha1listers "github.com/kcp-dev/kcp/sdk/client/listers/apiresource/v1alpha1"
 	apisv1alpha1listers "github.com/kcp-dev/kcp/sdk/client/listers/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -53,8 +52,7 @@ import (
 	"k8s.io/klog/v2"
 
 	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
-	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
-	workloadv1alpha1client "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/typed/workload/v1alpha1"
+	tmcworkloadclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster/typed/workload/v1alpha1"
 	workloadv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/workload/v1alpha1"
 	workloadv1alpha1listers "github.com/kcp-dev/contrib-tmc/client/listers/workload/v1alpha1"
 )
@@ -70,28 +68,25 @@ const (
 // of a syncTarget.
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
-	tmcClusterClient tmcclientset.ClusterInterface,
+	tmcWorkloadClusterClient tmcworkloadclientset.WorkloadV1alpha1ClusterInterface,
 	syncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
 	apiExportInformer, globalAPIExportInformer apisv1alpha1informers.APIExportClusterInformer,
 	apiResourceSchemaInformer, globalAPIResourceSchemaInformer apisv1alpha1informers.APIResourceSchemaClusterInformer,
 	apiResourceImportInformer apiresourcev1alpha1informers.APIResourceImportClusterInformer,
 ) (*Controller, error) {
 	c := &Controller{
-		queue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), ControllerName),
-		kcpClusterClient:  kcpClusterClient,
-		tmcClusterClient:  tmcClusterClient,
-		syncTargetIndexer: syncTargetInformer.Informer().GetIndexer(),
-		syncTargetLister:  syncTargetInformer.Lister(),
-		apiExportsIndexer: apiExportInformer.Informer().GetIndexer(),
+		queue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), ControllerName),
+		kcpClusterClient:         kcpClusterClient,
+		tmcWorkloadClusterClient: tmcWorkloadClusterClient,
+		syncTargetIndexer:        syncTargetInformer.Informer().GetIndexer(),
+		syncTargetLister:         syncTargetInformer.Lister(),
+		apiExportsIndexer:        apiExportInformer.Informer().GetIndexer(),
 		getAPIExport: func(path logicalcluster.Path, name string) (*apisv1alpha1.APIExport, error) {
 			return indexers.ByPathAndNameWithFallback[*apisv1alpha1.APIExport](apisv1alpha1.Resource("apiexports"), apiExportInformer.Informer().GetIndexer(), globalAPIExportInformer.Informer().GetIndexer(), path, name)
 		},
 		getAPIResourceSchema: informer.NewScopedGetterWithFallback[*apisv1alpha1.APIResourceSchema, apisv1alpha1listers.APIResourceSchemaLister](apiResourceSchemaInformer.Lister(), globalAPIResourceSchemaInformer.Lister()),
 		apiImportLister:      apiResourceImportInformer.Lister(),
 	}
-
-	// trigger informer syncs
-	c.tmcClusterClient.WorkloadV1alpha1().SyncTargets()
 
 	if err := syncTargetInformer.Informer().AddIndexers(cache.Indexers{
 		indexSyncTargetsByExport: indexSyncTargetsByExports,
@@ -153,17 +148,10 @@ func NewController(
 	return c, nil
 }
 
-type SyncTarget = workloadv1alpha1.SyncTarget
-type SyncTargetSpec = workloadv1alpha1.SyncTargetSpec
-type SyncTargetStatus = workloadv1alpha1.SyncTargetStatus
-type Patcher = workloadv1alpha1client.SyncTargetInterface
-type Resource = committer.Resource[*SyncTargetSpec, *SyncTargetStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
-
 type Controller struct {
-	queue            workqueue.RateLimitingInterface
-	kcpClusterClient kcpclientset.ClusterInterface
-	tmcClusterClient tmcclientset.ClusterInterface
+	queue                    workqueue.RateLimitingInterface
+	kcpClusterClient         kcpclientset.ClusterInterface
+	tmcWorkloadClusterClient tmcworkloadclientset.WorkloadV1alpha1ClusterInterface
 
 	syncTargetIndexer    cache.Indexer
 	syncTargetLister     workloadv1alpha1listers.SyncTargetClusterLister
@@ -171,8 +159,6 @@ type Controller struct {
 	getAPIExport         func(path logicalcluster.Path, name string) (*apisv1alpha1.APIExport, error)
 	getAPIResourceSchema informer.ScopedFallbackGetFunc[*apisv1alpha1.APIResourceSchema]
 	apiImportLister      apiresourcev1alpha1listers.APIResourceImportClusterLister
-
-	commit CommitFunc
 }
 
 func (c *Controller) enqueueSyncTarget(obj interface{}, logger logr.Logger, logSuffix string) {
@@ -262,8 +248,6 @@ func (c *Controller) enqueueAPIResourceSchema(obj interface{}, logger logr.Logge
 func (c *Controller) Start(ctx context.Context, numThreads int) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
-
-	c.commit = committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](c.tmcClusterClient.WorkloadV1alpha1().SyncTargets())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), ControllerName)
 	ctx = klog.NewContext(ctx, logger)
@@ -364,20 +348,12 @@ func (c *Controller) process(ctx context.Context, key string) error {
 		return err
 	}
 
-	// current - new
-	// synctarget - old
-	if !reflect.DeepEqual(currentSyncTarget.ObjectMeta, syncTarget.ObjectMeta) || !reflect.DeepEqual(currentSyncTarget.Spec, syncTarget.Spec) {
+	if !reflect.DeepEqual(currentSyncTarget.ObjectMeta, syncTarget.ObjectMeta) ||
+		!reflect.DeepEqual(currentSyncTarget.Spec, syncTarget.Spec) ||
+		!reflect.DeepEqual(currentSyncTarget.Status, syncTarget.Status) {
 		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget")
-		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+		if _, err := c.tmcWorkloadClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
 			logger.Error(err, "failed to patch sync target")
-			return err
-		}
-	}
-
-	if !reflect.DeepEqual(currentSyncTarget.Status, syncTarget.Status) {
-		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget status")
-		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status"); err != nil {
-			logger.Error(err, "failed to patch sync target status")
 			return err
 		}
 	}

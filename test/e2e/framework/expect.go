@@ -25,16 +25,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcpclient "github.com/kcp-dev/kcp/sdk/client/clientset/versioned"
+	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
-
-	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	kcpclient "github.com/kcp-dev/kcp/sdk/client/clientset/versioned"
-	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 )
 
 // Expectation closes over a statement of intent, allowing the caller

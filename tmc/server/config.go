@@ -43,8 +43,7 @@ type Config struct {
 }
 
 type ExtraConfig struct {
-	TmcSharedInformerFactory      tmcinformers.SharedInformerFactory
-	CacheTmcSharedInformerFactory tmcinformers.SharedInformerFactory
+	TmcSharedInformerFactory tmcinformers.SharedInformerFactory
 }
 
 type completedConfig struct {
@@ -80,7 +79,7 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		return nil, err
 	}
 
-	// reuse the kcp IdentityConfig as it does resolution ingithub.com/kcp-dev/kcp/pkg/server/config.go
+	// reuse the kcp IdentityConfig as it does resolution in github.com/kcp-dev/kcp/pkg/server/config.go
 	informerConfig := rest.CopyConfig(core.IdentityConfig)
 	informerConfig.UserAgent = "tmc-informers"
 	informerTmcClient, err := tmcclientset.NewForConfig(informerConfig)
@@ -89,19 +88,6 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 	}
 	tmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
 		informerTmcClient,
-		resyncPeriod,
-	)
-
-	cacheClientConfig, err := core.Options.Cache.Client.RestConfig(rest.CopyConfig(core.GenericConfig.LoopbackClientConfig))
-	if err != nil {
-		return nil, err
-	}
-	cacheTmcClusterClient, err := tmcclientset.NewForConfig(cacheClientConfig)
-	if err != nil {
-		return nil, err
-	}
-	cacheTmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
-		cacheTmcClusterClient,
 		resyncPeriod,
 	)
 
@@ -115,7 +101,7 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 			virtualcommandoptions.DefaultRootPathPrefix,
 			core.ShardExternalURL,
 			core.CacheKcpSharedInformerFactory,
-			cacheTmcSharedInformerFactory,
+			tmcSharedInformerFactory,
 		)
 		if err != nil {
 			return nil, err
@@ -130,15 +116,9 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		Options: opts,
 		Core:    core,
 		ExtraConfig: ExtraConfig{
-			TmcSharedInformerFactory:      tmcSharedInformerFactory,
-			CacheTmcSharedInformerFactory: cacheTmcSharedInformerFactory,
+			TmcSharedInformerFactory: tmcSharedInformerFactory,
 		},
 	}
-
-	//admissionPluginInitializers := []admission.PluginInitializer{
-	//	tmcadmissioninitializers.NewTmcInformersInitializer(c.TmcSharedInformerFactory, c.CacheTmcSharedInformerFactory),
-	//	tmcadmissioninitializers.NewTmcClusterClientInitializer(cacheTmcClusterClient),
-	//}
 
 	return c, nil
 }

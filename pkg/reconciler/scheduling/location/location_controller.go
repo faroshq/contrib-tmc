@@ -18,17 +18,21 @@ package location
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
+	"github.com/kcp-dev/logicalcluster/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -38,8 +42,7 @@ import (
 
 	schedulingv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/scheduling/v1alpha1"
 	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
-	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
-	schedulingv1alpha1client "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/typed/scheduling/v1alpha1"
+	tmcschedulingclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster/typed/scheduling/v1alpha1"
 	schedulingv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/scheduling/v1alpha1"
 	workloadv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/workload/v1alpha1"
 	schedulingv1alpha1listers "github.com/kcp-dev/contrib-tmc/client/listers/scheduling/v1alpha1"
@@ -53,7 +56,7 @@ const (
 // NewController returns a new controller reconciling location status.
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
-	tmcClient tmcclientset.ClusterInterface,
+	tmcSchedulingClusterClient tmcschedulingclientset.SchedulingV1alpha1ClusterInterface,
 	locationInformer schedulingv1alpha1informers.LocationClusterInformer,
 	syncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
 ) (*controller, error) {
@@ -69,13 +72,11 @@ func NewController(
 			}
 			queue.AddAfter(key, duration)
 		},
-		kcpClusterClient: kcpClusterClient,
-		tmcClient:        tmcClient,
-		locationLister:   locationInformer.Lister(),
-		syncTargetLister: syncTargetInformer.Lister(),
+		kcpClusterClient:           kcpClusterClient,
+		tmcSchedulingClusterClient: tmcSchedulingClusterClient,
+		locationLister:             locationInformer.Lister(),
+		syncTargetLister:           syncTargetInformer.Lister(),
 	}
-
-	tmcClient.SchedulingV1alpha1().Locations()
 
 	_, _ = locationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(obj interface{}) { c.enqueueLocation(obj) },
@@ -111,25 +112,16 @@ func NewController(
 	return c, nil
 }
 
-type Location = schedulingv1alpha1.Location
-type LocationSpec = schedulingv1alpha1.LocationSpec
-type LocationStatus = schedulingv1alpha1.LocationStatus
-type Patcher = schedulingv1alpha1client.LocationInterface
-type Resource = committer.Resource[*LocationSpec, *LocationStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
-
 // controller.
 type controller struct {
 	queue        workqueue.RateLimitingInterface
 	enqueueAfter func(*schedulingv1alpha1.Location, time.Duration)
 
-	kcpClusterClient kcpclientset.ClusterInterface
-	tmcClient        tmcclientset.ClusterInterface
+	kcpClusterClient           kcpclientset.ClusterInterface
+	tmcSchedulingClusterClient tmcschedulingclientset.SchedulingV1alpha1ClusterInterface
 
 	locationLister   schedulingv1alpha1listers.LocationClusterLister
 	syncTargetLister workloadv1alpha1listers.SyncTargetClusterLister
-
-	commit CommitFunc
 }
 
 func (c *controller) enqueueLocation(obj interface{}) {
@@ -179,8 +171,6 @@ func (c *controller) enqueueSyncTarget(obj interface{}) {
 func (c *controller) Start(ctx context.Context, numThreads int) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
-
-	c.commit = committer.NewCommitter[*Location, Patcher, *LocationSpec, *LocationStatus](c.tmcClient.SchedulingV1alpha1().Locations())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), controllerName)
 	ctx = klog.NewContext(ctx, logger)
@@ -254,12 +244,71 @@ func (c *controller) process(ctx context.Context, key string) error {
 	// Regardless of whether reconcile returned an error or not, always try to patch status if needed. Return the
 	// reconciliation error at the end.
 
-	// If the object being reconciled changed as a result, update it.
-	oldResource := &Resource{ObjectMeta: old.ObjectMeta, Spec: &old.Spec, Status: &old.Status}
-	newResource := &Resource{ObjectMeta: obj.ObjectMeta, Spec: &obj.Spec, Status: &obj.Status}
-	if err := c.commit(ctx, oldResource, newResource); err != nil {
+	if err := c.patchIfNeeded(ctx, old, obj); err != nil {
 		errs = append(errs, err)
 	}
 
 	return utilerrors.NewAggregate(errs)
+}
+
+func (c *controller) patchIfNeeded(ctx context.Context, old, obj *schedulingv1alpha1.Location) error {
+	specOrObjectMetaChanged := !equality.Semantic.DeepEqual(old.Spec, obj.Spec) || !equality.Semantic.DeepEqual(old.ObjectMeta, obj.ObjectMeta)
+	statusChanged := !equality.Semantic.DeepEqual(old.Status, obj.Status)
+
+	if specOrObjectMetaChanged && statusChanged {
+		panic("Programmer error: spec and status changed in same reconcile iteration")
+	}
+
+	if !specOrObjectMetaChanged && !statusChanged {
+		return nil
+	}
+
+	clusterLocationForPatch := func(location *schedulingv1alpha1.Location) schedulingv1alpha1.Location {
+		var ret schedulingv1alpha1.Location
+		if specOrObjectMetaChanged {
+			ret.ObjectMeta = location.ObjectMeta
+			ret.Spec = location.Spec
+		} else {
+			ret.Status = location.Status
+		}
+		return ret
+	}
+
+	clusterName := logicalcluster.From(old)
+	name := old.Name
+
+	oldForPatch := clusterLocationForPatch(old)
+	// to ensure they appear in the patch as preconditions
+	oldForPatch.UID = ""
+	oldForPatch.ResourceVersion = ""
+
+	oldData, err := json.Marshal(oldForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal old data for Location %s|%s: %w", clusterName, name, err)
+	}
+
+	newForPatch := clusterLocationForPatch(obj)
+	// to ensure they appear in the patch as preconditions
+	newForPatch.UID = old.UID
+	newForPatch.ResourceVersion = old.ResourceVersion
+
+	newData, err := json.Marshal(newForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal new data for Location %s|%s: %w", clusterName, name, err)
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
+	if err != nil {
+		return fmt.Errorf("failed to create patch for Location %s|%s: %w", clusterName, name, err)
+	}
+
+	// TODO: Check if status changes and patch only status.
+	// https://github.com/kcp-dev/contrib-tmc/issues/1
+
+	_, err = c.tmcSchedulingClusterClient.Cluster(clusterName.Path()).Locations().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch Location %s|%s: %w", clusterName, name, err)
+
+	}
+	return err
 }

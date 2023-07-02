@@ -42,7 +42,7 @@ import (
 	"k8s.io/klog/v2"
 
 	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
-	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
+	tmcworkloadclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster/typed/workload/v1alpha1"
 	workloadv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/workload/v1alpha1"
 )
 
@@ -50,16 +50,16 @@ const ControllerName = "kcp-synctarget-controller"
 
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
-	tmcClusterClient tmcclientset.ClusterInterface,
+	tmcWorkloadClusterClient tmcworkloadclientset.WorkloadV1alpha1ClusterInterface,
 	syncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
 	workspaceShardInformer, globalWorkspaceShardInformer corev1alpha1informers.ShardClusterInformer,
 ) *Controller {
 	c := &Controller{
-		queue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), ControllerName),
-		kcpClusterClient:    kcpClusterClient,
-		tmcClusterClient:    tmcClusterClient,
-		syncTargetIndexer:   syncTargetInformer.Informer().GetIndexer(),
-		listWorkspaceShards: informer.NewListerWithFallback[*corev1alpha1.Shard](workspaceShardInformer.Lister(), globalWorkspaceShardInformer.Lister()),
+		queue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), ControllerName),
+		kcpClusterClient:         kcpClusterClient,
+		tmcWorkloadClusterClient: tmcWorkloadClusterClient,
+		syncTargetIndexer:        syncTargetInformer.Informer().GetIndexer(),
+		listWorkspaceShards:      informer.NewListerWithFallback[*corev1alpha1.Shard](workspaceShardInformer.Lister(), globalWorkspaceShardInformer.Lister()),
 	}
 
 	// Watch for events related to SyncTargets
@@ -80,11 +80,11 @@ func NewController(
 }
 
 type Controller struct {
-	queue               workqueue.RateLimitingInterface
-	kcpClusterClient    kcpclientset.ClusterInterface
-	tmcClusterClient    tmcclientset.ClusterInterface
-	listWorkspaceShards informer.FallbackListFunc[*corev1alpha1.Shard]
-	syncTargetIndexer   cache.Indexer
+	queue                    workqueue.RateLimitingInterface
+	kcpClusterClient         kcpclientset.ClusterInterface
+	tmcWorkloadClusterClient tmcworkloadclientset.WorkloadV1alpha1ClusterInterface
+	listWorkspaceShards      informer.FallbackListFunc[*corev1alpha1.Shard]
+	syncTargetIndexer        cache.Indexer
 }
 
 func (c *Controller) enqueueSyncTarget(obj interface{}) {
@@ -209,23 +209,14 @@ func (c *Controller) process(ctx context.Context, key string) error {
 		return err
 	}
 
-	if !reflect.DeepEqual(currentSyncTarget.ObjectMeta, newSyncTarget.ObjectMeta) || !reflect.DeepEqual(currentSyncTarget.Spec, newSyncTarget.Spec) {
+	if !reflect.DeepEqual(currentSyncTarget.ObjectMeta, newSyncTarget.ObjectMeta) ||
+		!reflect.DeepEqual(currentSyncTarget.Spec, newSyncTarget.Spec) ||
+		!reflect.DeepEqual(currentSyncTarget.Status, newSyncTarget.Status) {
 		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget")
-		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+		if _, err := c.tmcWorkloadClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
 			logger.Error(err, "failed to patch sync target")
 			return err
 		}
-	}
-
-	if !reflect.DeepEqual(currentSyncTarget.Status, newSyncTarget.Status) {
-		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget status")
-		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status"); err != nil {
-			logger.Error(err, "failed to patch sync target status")
-			return err
-		} else {
-			logger.Info("patched sync target status")
-		}
-
 	}
 
 	return nil

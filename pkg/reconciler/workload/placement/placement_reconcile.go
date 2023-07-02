@@ -75,7 +75,7 @@ func (c *controller) reconcile(ctx context.Context, placement *schedulingv1alpha
 func (c *controller) patchPlacement(ctx context.Context, clusterName logicalcluster.Path, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*schedulingv1alpha1.Placement, error) {
 	logger := klog.FromContext(ctx)
 	logger.WithValues("patch", string(data)).V(2).Info("patching Placement")
-	return c.tmcClient.Cluster(clusterName).SchedulingV1alpha1().Placements().Patch(ctx, name, pt, data, opts, subresources...)
+	return c.tmcSchedulingClusterClient.Cluster(clusterName).Placements().Patch(ctx, name, pt, data, opts, subresources...)
 }
 
 // listWorkloadAPIBindings list all compute apibindings.

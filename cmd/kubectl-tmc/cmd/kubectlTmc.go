@@ -21,19 +21,20 @@ import (
 	"fmt"
 	"os"
 
+	bindcmd "github.com/kcp-dev/kcp/pkg/cliplugins/bind/cmd"
+	claimscmd "github.com/kcp-dev/kcp/pkg/cliplugins/claims/cmd"
+	crdcmd "github.com/kcp-dev/kcp/pkg/cliplugins/crd/cmd"
+	workspacecmd "github.com/kcp-dev/kcp/pkg/cliplugins/workspace/cmd"
+
+	// We extend current kcp commands too
+	"github.com/kcp-dev/kcp/pkg/cmd/help"
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	// We extend current kcp commands too
 	workloadcmd "github.com/kcp-dev/contrib-tmc/pkg/cliplugins/workload/cmd"
-	bindcmd "github.com/kcp-dev/kcp/pkg/cliplugins/bind/cmd"
-	claimscmd "github.com/kcp-dev/kcp/pkg/cliplugins/claims/cmd"
-	crdcmd "github.com/kcp-dev/kcp/pkg/cliplugins/crd/cmd"
-	workspacecmd "github.com/kcp-dev/kcp/pkg/cliplugins/workspace/cmd"
-	"github.com/kcp-dev/kcp/pkg/cmd/help"
 )
 
 func KubectlTmcCommand() *cobra.Command {

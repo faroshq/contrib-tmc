@@ -183,8 +183,8 @@ require (
 
 replace (
 	github.com/google/cel-go => github.com/google/cel-go v0.12.6
-	//	github.com/kcp-dev/kcp => ../kcp
-	//	github.com/kcp-dev/kcp/sdk => ../kcp/sdk
+	//github.com/kcp-dev/kcp => ../kcp
+	//github.com/kcp-dev/kcp/sdk => ../kcp/sdk
 	k8s.io/api => github.com/kcp-dev/kubernetes/staging/src/k8s.io/api v0.0.0-20230526104423-c790f4246d25
 	k8s.io/apiextensions-apiserver => github.com/kcp-dev/kubernetes/staging/src/k8s.io/apiextensions-apiserver v0.0.0-20230526104423-c790f4246d25
 	k8s.io/apimachinery => github.com/kcp-dev/kubernetes/staging/src/k8s.io/apimachinery v0.0.0-20230526104423-c790f4246d25

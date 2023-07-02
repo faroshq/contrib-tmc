@@ -25,6 +25,8 @@ import (
 	"time"
 
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
@@ -42,8 +44,6 @@ import (
 	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
 	"github.com/kcp-dev/contrib-tmc/test/e2e/framework"
-	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 )
 
 func TestSyncerTunnel(t *testing.T) {

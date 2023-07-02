@@ -25,13 +25,12 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/logicalcluster/v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -42,7 +41,6 @@ import (
 
 	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
 	tmcworkloadclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster/typed/workload/v1alpha1"
-	workloadv1alpha1client "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/typed/workload/v1alpha1"
 	workloadv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/workload/v1alpha1"
 )
 
@@ -53,7 +51,6 @@ type Controller struct {
 	kcpClusterClient         kcpclientset.ClusterInterface
 	tmcWorkloadClusterClient tmcworkloadclientset.WorkloadV1alpha1ClusterInterface
 	heartbeatThreshold       time.Duration
-	commit                   CommitFunc
 	getSyncTarget            func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error)
 }
 
@@ -83,13 +80,6 @@ func NewController(
 	return c, nil
 }
 
-type SyncTarget = workloadv1alpha1.SyncTarget
-type SyncTargetSpec = workloadv1alpha1.SyncTargetSpec
-type SyncTargetStatus = workloadv1alpha1.SyncTargetStatus
-type Patcher = workloadv1alpha1client.SyncTargetInterface
-type Resource = committer.Resource[*SyncTargetSpec, *SyncTargetStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
-
 func (c *Controller) enqueue(obj interface{}) {
 	key, err := kcpcache.MetaClusterNamespaceKeyFunc(obj)
 	if err != nil {
@@ -105,8 +95,6 @@ func (c *Controller) enqueue(obj interface{}) {
 func (c *Controller) Start(ctx context.Context) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
-
-	c.commit = committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](c.tmcWorkloadClusterClient.SyncTargets())
 
 	logger := logging.WithReconciler(klog.FromContext(ctx), ControllerName)
 	ctx = klog.NewContext(ctx, logger)
@@ -216,7 +204,7 @@ func (c *Controller) patchIfNeeded(ctx context.Context, old, obj *workloadv1alph
 
 	oldData, err := json.Marshal(oldForPatch)
 	if err != nil {
-		return fmt.Errorf("failed to Marshal old data for Workspace %s|%s: %w", clusterName, name, err)
+		return fmt.Errorf("failed to Marshal old data for SyncTarget %s|%s: %w", clusterName, name, err)
 	}
 
 	newForPatch := clusterSyncTargetForPatch(obj)
@@ -226,19 +214,21 @@ func (c *Controller) patchIfNeeded(ctx context.Context, old, obj *workloadv1alph
 
 	newData, err := json.Marshal(newForPatch)
 	if err != nil {
-		return fmt.Errorf("failed to Marshal new data for Workspaces %s|%s: %w", clusterName, name, err)
+		return fmt.Errorf("failed to Marshal new data for SyncTarget %s|%s: %w", clusterName, name, err)
 	}
 
 	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
 	if err != nil {
-		return fmt.Errorf("failed to create patch for Workspaces %s|%s: %w", clusterName, name, err)
+		return fmt.Errorf("failed to create patch for SyncTarget %s|%s: %w", clusterName, name, err)
 	}
 
-	var subresources []string
-	if statusChanged {
-		subresources = []string{"status"}
-	}
+	// TODO: Check if status changes and patch only status.
+	// https://github.com/kcp-dev/contrib-tmc/issues/1
 
-	_, err = c.tmcWorkloadClusterClient.Cluster(clusterName.Path()).SyncTargets().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, subresources...)
+	_, err = c.tmcWorkloadClusterClient.Cluster(clusterName.Path()).SyncTargets().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch SyncTarget %s|%s: %w", clusterName, name, err)
+
+	}
 	return err
 }

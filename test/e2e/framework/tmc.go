@@ -38,6 +38,11 @@ import (
 	"time"
 
 	"github.com/egymgmbh/go-prefix-writer/prefixer"
+	"github.com/kcp-dev/kcp/cmd/sharded-test-server/third_party/library-go/crypto"
+	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
+	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
+	kubefixtures "github.com/kcp-dev/kcp/test/e2e/fixtures/kube"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
@@ -60,11 +65,6 @@ import (
 
 	tmcoptions "github.com/kcp-dev/contrib-tmc/cmd/tmc/options"
 	"github.com/kcp-dev/contrib-tmc/tmc/server"
-	"github.com/kcp-dev/kcp/cmd/sharded-test-server/third_party/library-go/crypto"
-	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
-	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
-	kubefixtures "github.com/kcp-dev/kcp/test/e2e/fixtures/kube"
 )
 
 // TestServerArgs returns the set of kcp args used to start a test
