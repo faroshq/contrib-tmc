@@ -15,6 +15,9 @@
 # We need bash for some conditional logic below.
 SHELL := /usr/bin/env bash -e
 
+REPO ?= quay.io/faroshq/tmc
+KO_DOCKER_REPO ?= ${REPO}
+
 GO_INSTALL = ./hack/go-install.sh
 
 TOOLS_DIR=hack/tools
@@ -155,6 +158,8 @@ all: build
 build: WHAT ?= ./cmd/...
 build: require-jq require-go require-git
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build $(BUILDFLAGS) -ldflags="$(LDFLAGS)" -o bin $(WHAT)
+	echo "To use the binaries, add them to your PATH."
+	export PATH=$$PATH:$(PWD)/bin
 .PHONY: build
 
 test:
@@ -186,3 +191,6 @@ test-e2e: WHAT ?= ./test/e2e...
 test-e2e: build
 	UNSAFE_E2E_HACK_DISABLE_ETCD_FSYNC=true NO_GORUN=1 GOOS=$(OS) GOARCH=$(ARCH) \
 		$(GO_TEST) -race $(COUNT_ARG) $(PARALLELISM_ARG) $(WHAT) $(TEST_ARGS) $(COMPLETE_SUITES_ARG)
+
+images:
+	KO_DOCKER_REPO=${KO_DOCKER_REPO} ko build --sbom=none -B --platform=linux/amd64 -t latest ./cmd/*

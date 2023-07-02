@@ -18,15 +18,18 @@ package synctarget
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-logr/logr"
 	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	"github.com/kcp-dev/logicalcluster/v3"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -51,7 +54,7 @@ type controller struct {
 
 	syncTargetUID    types.UID
 	syncTargetLister workloadv1alpha1listers.SyncTargetLister
-	commit           CommitFunc
+	syncTargetClient workloadv1alpha1client.SyncTargetInterface
 
 	reconcilers []reconciler
 }
@@ -76,7 +79,7 @@ func NewSyncTargetController(
 		queue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName),
 		syncTargetUID:    syncTargetUID,
 		syncTargetLister: syncTargetInformer.Lister(),
-		commit:           committer.NewCommitterScoped[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](syncTargetClient),
+		syncTargetClient: syncTargetClient,
 
 		reconcilers: []reconciler{
 			gvrSource,
@@ -111,13 +114,6 @@ func NewSyncTargetController(
 
 	return c, nil
 }
-
-type SyncTarget = workloadv1alpha1.SyncTarget
-type SyncTargetSpec = workloadv1alpha1.SyncTargetSpec
-type SyncTargetStatus = workloadv1alpha1.SyncTargetStatus
-type Patcher = workloadv1alpha1client.SyncTargetInterface
-type Resource = committer.Resource[*SyncTargetSpec, *SyncTargetStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 func (c *controller) enqueue(obj interface{}, logger logr.Logger) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
@@ -207,11 +203,71 @@ func (c *controller) process(ctx context.Context, key string) (bool, error) {
 		errs = append(errs, err)
 	}
 
-	oldResource := &Resource{ObjectMeta: previous.ObjectMeta, Spec: &previous.Spec, Status: &previous.Status}
-	newResource := &Resource{ObjectMeta: syncTarget.ObjectMeta, Spec: &syncTarget.Spec, Status: &syncTarget.Status}
-	if err := c.commit(ctx, oldResource, newResource); err != nil {
+	if err := c.patchIfNeeded(ctx, previous, syncTarget); err != nil {
 		errs = append(errs, err)
 	}
 
 	return requeue, errors.NewAggregate(errs)
+}
+
+func (c *controller) patchIfNeeded(ctx context.Context, old, obj *workloadv1alpha1.SyncTarget) error {
+	specOrObjectMetaChanged := !equality.Semantic.DeepEqual(old.Spec, obj.Spec) || !equality.Semantic.DeepEqual(old.ObjectMeta, obj.ObjectMeta)
+	statusChanged := !equality.Semantic.DeepEqual(old.Status, obj.Status)
+
+	if specOrObjectMetaChanged && statusChanged {
+		panic("Programmer error: spec and status changed in same reconcile iteration")
+	}
+
+	if !specOrObjectMetaChanged && !statusChanged {
+		return nil
+	}
+
+	clusterSyncTargetForPatch := func(synctarget *workloadv1alpha1.SyncTarget) workloadv1alpha1.SyncTarget {
+		var ret workloadv1alpha1.SyncTarget
+		if specOrObjectMetaChanged {
+			ret.ObjectMeta = synctarget.ObjectMeta
+			ret.Spec = synctarget.Spec
+		} else {
+			ret.Status = synctarget.Status
+		}
+		return ret
+	}
+
+	clusterName := logicalcluster.From(old)
+	name := old.Name
+
+	oldForPatch := clusterSyncTargetForPatch(old)
+	// to ensure they appear in the patch as preconditions
+	oldForPatch.UID = ""
+	oldForPatch.ResourceVersion = ""
+
+	oldData, err := json.Marshal(oldForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal old data for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	newForPatch := clusterSyncTargetForPatch(obj)
+	// to ensure they appear in the patch as preconditions
+	newForPatch.UID = old.UID
+	newForPatch.ResourceVersion = old.ResourceVersion
+
+	newData, err := json.Marshal(newForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal new data for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
+	if err != nil {
+		return fmt.Errorf("failed to create patch for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	// TODO: Check if status changes and patch only status.
+	// https://github.com/kcp-dev/contrib-tmc/issues/1
+
+	_, err = c.syncTargetClient.Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch SyncTarget %s|%s: %w", clusterName, name, err)
+
+	}
+	return err
 }

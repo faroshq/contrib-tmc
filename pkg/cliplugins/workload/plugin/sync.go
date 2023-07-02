@@ -592,7 +592,8 @@ func (o *SyncOptions) enableSyncerForWorkspace(ctx context.Context, config *rest
 			Verbs:         []string{"update", "patch"},
 			APIGroups:     []string{workloadv1alpha1.SchemeGroupVersion.Group},
 			ResourceNames: []string{syncTargetName},
-			Resources:     []string{"synctargets/status"},
+			//Resources:     []string{"synctargets/status"},
+			Resources: []string{"synctargets", "synctargets/status"}, // https://github.com/kcp-dev/contrib-tmc/issues/1
 		},
 		{
 			Verbs:     []string{"get", "create", "update", "delete", "list", "watch"},

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 
-	bindcmd "github.com/kcp-dev/kcp/pkg/cliplugins/bind/cmd"
 	claimscmd "github.com/kcp-dev/kcp/pkg/cliplugins/claims/cmd"
 	crdcmd "github.com/kcp-dev/kcp/pkg/cliplugins/crd/cmd"
 	workspacecmd "github.com/kcp-dev/kcp/pkg/cliplugins/workspace/cmd"
@@ -32,6 +31,7 @@ import (
 	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
+	bindcmd "github.com/kcp-dev/contrib-tmc/pkg/cliplugins/bind/cmd"
 	workloadcmd "github.com/kcp-dev/contrib-tmc/pkg/cliplugins/workload/cmd"
 )
 

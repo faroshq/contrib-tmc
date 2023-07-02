@@ -39,7 +39,7 @@ import (
 	locationreconciler "github.com/kcp-dev/contrib-tmc/pkg/reconciler/scheduling/location"
 )
 
-// placementSchedulingReconciler schedules placments according to the selected locations.
+// placementSchedulingReconciler schedules placements according to the selected locations.
 // It considers only valid SyncTargets and updates the internal.workload.kcp.io/synctarget
 // annotation with the selected one on the placement object.
 type placementSchedulingReconciler struct {

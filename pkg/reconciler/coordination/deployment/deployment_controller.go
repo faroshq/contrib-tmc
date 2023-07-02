@@ -18,18 +18,21 @@ package deployment
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-logr/logr"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	v1 "github.com/kcp-dev/client-go/informers/apps/v1"
 	kubernetesclient "github.com/kcp-dev/client-go/kubernetes"
 	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	"github.com/kcp-dev/logicalcluster/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,7 +41,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -51,13 +53,6 @@ import (
 const (
 	controllerName = "kcp-deployment-coordination"
 )
-
-type Deployment = appsv1.Deployment
-type DeploymentSpec = appsv1.DeploymentSpec
-type DeploymentStatus = appsv1.DeploymentStatus
-type Patcher = appsv1client.DeploymentInterface
-type Resource = committer.Resource[*DeploymentSpec, *DeploymentStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 // NewController returns a new controller instance.
 func NewController(
@@ -76,9 +71,6 @@ func NewController(
 
 		getDeployment: func(clusterName logicalcluster.Name, namespace, name string) (*appsv1.Deployment, error) {
 			return lister.Cluster(clusterName).Deployments(namespace).Get(name)
-		},
-		patcher: func(clusterName logicalcluster.Name, namespace string) committer.Patcher[*appsv1.Deployment] {
-			return kubeClusterClient.AppsV1().Deployments().Cluster(clusterName.Path()).Namespace(namespace)
 		},
 	}
 
@@ -118,15 +110,11 @@ type controller struct {
 	upstreamViewQueue workqueue.RateLimitingInterface
 	syncerViewQueue   workqueue.RateLimitingInterface
 
-	getDeployment func(clusterName logicalcluster.Name, namespace, name string) (*appsv1.Deployment, error)
-	patcher       func(clusterName logicalcluster.Name, namespace string) committer.Patcher[*appsv1.Deployment]
+	getDeployment     func(clusterName logicalcluster.Name, namespace, name string) (*appsv1.Deployment, error)
+	kubeClusterClient kubernetesclient.ClusterInterface
 
 	syncerViewRetriever coordination.SyncerViewRetriever[*appsv1.Deployment]
 	gvr                 schema.GroupVersionResource
-}
-
-func (c *controller) committer(clusterName logicalcluster.Name, namespace string) CommitFunc {
-	return committer.NewCommitterScoped[*Deployment, Patcher, *DeploymentSpec, *DeploymentStatus](c.patcher(clusterName, namespace))
 }
 
 func filter[K comparable, V interface{}](aMap map[K]V, keep func(key K) bool) map[K]V {
@@ -300,13 +288,7 @@ func (c *controller) processUpstreamView(ctx context.Context, key string) error 
 		updated.Annotations[key] = value
 	}
 
-	return c.committer(clusterName, namespace)(ctx,
-		&committer.Resource[*appsv1.DeploymentSpec, *appsv1.DeploymentStatus]{
-			ObjectMeta: deployment.ObjectMeta,
-		},
-		&committer.Resource[*appsv1.DeploymentSpec, *appsv1.DeploymentStatus]{
-			ObjectMeta: updated.ObjectMeta,
-		})
+	return c.patchIfNeeded(ctx, deployment, updated)
 }
 
 func (c *controller) processSyncerView(ctx context.Context, key string) error {
@@ -318,10 +300,12 @@ func (c *controller) processSyncerView(ctx context.Context, key string) error {
 		return nil
 	}
 
-	deployment, err := c.getDeployment(clusterName, namespace, name)
+	current, err := c.getDeployment(clusterName, namespace, name)
 	if err != nil {
 		return err
 	}
+	deployment := current.DeepCopy()
+
 	logger = logging.WithObject(logger, deployment)
 	ctx = klog.NewContext(ctx, logger)
 
@@ -371,13 +355,67 @@ func (c *controller) processSyncerView(ctx context.Context, key string) error {
 		summarizedStatus.Conditions = append(summarizedStatus.Conditions, consolidatedConditions[appsv1.DeploymentConditionType(condition)])
 	}
 
-	return c.committer(clusterName, namespace)(ctx,
-		&committer.Resource[*appsv1.DeploymentSpec, *appsv1.DeploymentStatus]{
-			ObjectMeta: deployment.ObjectMeta,
-			Status:     &deployment.Status,
-		},
-		&committer.Resource[*appsv1.DeploymentSpec, *appsv1.DeploymentStatus]{
-			ObjectMeta: deployment.ObjectMeta,
-			Status:     &summarizedStatus,
-		})
+	return c.patchIfNeeded(ctx, current, deployment)
+}
+
+func (c *controller) patchIfNeeded(ctx context.Context, old, obj *appsv1.Deployment) error {
+	specOrObjectMetaChanged := !equality.Semantic.DeepEqual(old.Spec, obj.Spec) || !equality.Semantic.DeepEqual(old.ObjectMeta, obj.ObjectMeta)
+	statusChanged := !equality.Semantic.DeepEqual(old.Status, obj.Status)
+
+	if specOrObjectMetaChanged && statusChanged {
+		panic("Programmer error: spec and status changed in same reconcile iteration")
+	}
+
+	if !specOrObjectMetaChanged && !statusChanged {
+		return nil
+	}
+
+	clusterDeploymentForPatch := func(deployment *appsv1.Deployment) appsv1.Deployment {
+		var ret appsv1.Deployment
+		if specOrObjectMetaChanged {
+			ret.ObjectMeta = deployment.ObjectMeta
+			ret.Spec = deployment.Spec
+		} else {
+			ret.Status = deployment.Status
+		}
+		return ret
+	}
+
+	clusterName := logicalcluster.From(old)
+	name := old.Name
+
+	oldForPatch := clusterDeploymentForPatch(old)
+	// to ensure they appear in the patch as preconditions
+	oldForPatch.UID = ""
+	oldForPatch.ResourceVersion = ""
+
+	oldData, err := json.Marshal(oldForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal old data for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	newForPatch := clusterDeploymentForPatch(obj)
+	// to ensure they appear in the patch as preconditions
+	newForPatch.UID = old.UID
+	newForPatch.ResourceVersion = old.ResourceVersion
+
+	newData, err := json.Marshal(newForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal new data for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
+	if err != nil {
+		return fmt.Errorf("failed to create patch for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	// TODO: Check if status changes and patch only status.
+	// https://github.com/kcp-dev/contrib-tmc/issues/1
+
+	_, err = c.kubeClusterClient.Cluster(clusterName.Path()).AppsV1().Deployments(obj.Namespace).Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch SyncTarget %s|%s: %w", clusterName, name, err)
+
+	}
+	return err
 }

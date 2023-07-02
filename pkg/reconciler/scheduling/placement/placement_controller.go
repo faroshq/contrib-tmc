@@ -54,7 +54,7 @@ import (
 )
 
 const (
-	ControllerName      = "kcp-scheduling-placement"
+	ControllerName      = "tmc-scheduling-placement"
 	byLocationWorkspace = ControllerName + "-byLocationWorkspace"
 )
 
@@ -85,11 +85,11 @@ func NewController(
 		namespaceLister: namespaceInformer.Lister(),
 
 		listLocationsByPath: func(path logicalcluster.Path) ([]*schedulingv1alpha1.Location, error) {
-			objs, err := indexers.ByIndex[*schedulingv1alpha1.Location](locationInformer.Informer().GetIndexer(), indexers.ByLogicalClusterPath, path.String())
-			if err != nil {
-				return nil, err
+			cluster, exists := path.Name()
+			if !exists {
+				return nil, fmt.Errorf("cluster name not found in path %q", path)
 			}
-			return objs, nil
+			return locationInformer.Lister().Cluster(cluster).List(labels.Everything())
 		},
 
 		placementLister:  placementInformer.Lister(),

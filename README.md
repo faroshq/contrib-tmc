@@ -10,19 +10,37 @@ and extend its functionality to support multi-cluster workload management.
 ## Quick start
 
 ```
+# Build CLI binaries
+
+  make build
+
 # Start TMC-KCP
-go run ./cmd/tmc start
+
+  go run ./cmd/tmc start
 
 # Create TMC workspace
-kubectl workspace create tmc-ws --type tmc --enter
+
+  kubectl tmc workspace create tmc-ws --type tmc --enter
 
 # Create SyncTarget for remote cluster
-kubectl workload sync cluster-1 --syncer-image foo:foo --output-file cluster-1.yaml
+
+  kubectl tmc workload sync cluster-1 --syncer-image quay.io/faroshq/tmc/syncer:latest --output-file cluster-1.yaml
+
+# Bind compute resources
+
+  kubectl kcp bind compute root:tmc-ws
+
+# Login into child cluster
+
+  KUBECONFIG=<pcluster-config> kubectl apply -f "cluster-1.yaml"
+
+# Create a workload on TMC-KCP cluster
+
+  kubectl create deployment kuard --image gcr.io/kuar-demo/kuard-amd64:blue
+
 
 ```
 
 ## Background
 
 https://github.com/kcp-dev/kcp/issues/2954
-
-7
