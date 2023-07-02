@@ -55,7 +55,7 @@ type templateProvider struct {
 	kubeClusterClient    kcpkubernetesclientset.ClusterInterface
 	dynamicClusterClient kcpdynamic.ClusterInterface
 	cachedKCPInformers   kcpinformers.SharedInformerFactory
-	cachedTMCInformers   tmcinformers.SharedInformerFactory
+	tmcInformers         tmcinformers.SharedInformerFactory
 	rootPathPrefix       string
 }
 
@@ -120,7 +120,7 @@ func (t *template) resolveRootPath(urlPath string, requestContext context.Contex
 
 	// In order to avoid conflicts with reusing deleted synctarget names, let's make sure that the synctarget name and synctarget UID match, if not,
 	// that likely means that a syncer is running with a stale synctarget that got deleted.
-	syncTarget, err := t.cachedTMCInformers.Workload().V1alpha1().SyncTargets().Cluster(clusterName).Lister().Get(syncTargetName)
+	syncTarget, err := t.tmcInformers.Workload().V1alpha1().SyncTargets().Cluster(clusterName).Lister().Get(syncTargetName)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("failed to get synctarget %s|%s: %w", path, syncTargetName, err))
 		return
@@ -205,7 +205,7 @@ func (t *template) authorize(ctx context.Context, a authorizer.Attributes) (auth
 func (t *template) bootstrapManagement(mainConfig genericapiserver.CompletedConfig) (apidefinition.APIDefinitionSetGetter, error) {
 	apiReconciler, err := apireconciler.NewAPIReconciler(
 		t.virtualWorkspaceName,
-		t.cachedTMCInformers.Workload().V1alpha1().SyncTargets(),
+		t.tmcInformers.Workload().V1alpha1().SyncTargets(),
 		t.cachedKCPInformers.Apis().V1alpha1().APIResourceSchemas(),
 		t.cachedKCPInformers.Apis().V1alpha1().APIExports(),
 		func(syncTargetClusterName logicalcluster.Name, syncTargetName string, apiResourceSchema *apisv1alpha1.APIResourceSchema, version string, apiExportIdentityHash string) (apidefinition.APIDefinition, error) {
@@ -243,7 +243,7 @@ func (t *template) bootstrapManagement(mainConfig genericapiserver.CompletedConf
 		defer close(t.readyCh)
 
 		for name, informer := range map[string]cache.SharedIndexInformer{
-			"synctargets":        t.cachedTMCInformers.Workload().V1alpha1().SyncTargets().Informer(),
+			"synctargets":        t.tmcInformers.Workload().V1alpha1().SyncTargets().Informer(),
 			"apiresourceschemas": t.cachedKCPInformers.Apis().V1alpha1().APIResourceSchemas().Informer(),
 			"apiexports":         t.cachedKCPInformers.Apis().V1alpha1().APIExports().Informer(),
 		} {

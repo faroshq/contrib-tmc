@@ -28,6 +28,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
+	kubefixtures "github.com/kcp-dev/kcp/test/e2e/fixtures/kube"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
@@ -48,8 +50,6 @@ import (
 	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/contrib-tmc/pkg/syncer/shared"
 	"github.com/kcp-dev/contrib-tmc/test/e2e/framework"
-	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
-	kubefixtures "github.com/kcp-dev/kcp/test/e2e/fixtures/kube"
 )
 
 //go:embed *.yaml

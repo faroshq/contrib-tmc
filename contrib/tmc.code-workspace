@@ -40,7 +40,8 @@
 				"mode": "debug",
 				"program": "${workspaceFolder:tmc}/cmd/tmc",
 				"env": {
-					"GOMOD": "${workspaceFolder:tmc}/go.mod"
+					"GOMOD": "${workspaceFolder:tmc}/go.mod",
+					"PATH": "${env:PATH}:/User/mjudeikis/go/bin"
 				},
 				"cwd": "${workspaceFolder:tmc}",
 				"args": [

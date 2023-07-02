@@ -18,23 +18,27 @@ package placement
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	kcpcorev1informers "github.com/kcp-dev/client-go/informers/core/v1"
 	corev1listers "github.com/kcp-dev/client-go/listers/core/v1"
 	"github.com/kcp-dev/kcp/pkg/indexers"
 	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
 	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -45,7 +49,6 @@ import (
 
 	schedulingv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/scheduling/v1alpha1"
 	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
-	schedulingv1alpha1client "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/typed/scheduling/v1alpha1"
 	schedulingv1alpha1informers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions/scheduling/v1alpha1"
 	schedulingv1alpha1listers "github.com/kcp-dev/contrib-tmc/client/listers/scheduling/v1alpha1"
 )
@@ -59,9 +62,9 @@ const (
 // a placement annotation..
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
-	tmcClient tmcclientset.ClusterInterface,
+	tmcClusterClient tmcclientset.ClusterInterface,
 	namespaceInformer kcpcorev1informers.NamespaceClusterInformer,
-	locationInformer, globalLocationInformer schedulingv1alpha1informers.LocationClusterInformer,
+	locationInformer schedulingv1alpha1informers.LocationClusterInformer,
 	placementInformer schedulingv1alpha1informers.PlacementClusterInformer,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), ControllerName)
@@ -77,12 +80,12 @@ func NewController(
 			queue.AddAfter(key, duration)
 		},
 		kcpClusterClient: kcpClusterClient,
-		tmcClient:        tmcClient,
+		tmcClusterClient: tmcClusterClient,
 
 		namespaceLister: namespaceInformer.Lister(),
 
 		listLocationsByPath: func(path logicalcluster.Path) ([]*schedulingv1alpha1.Location, error) {
-			objs, err := indexers.ByIndexWithFallback[*schedulingv1alpha1.Location](locationInformer.Informer().GetIndexer(), globalLocationInformer.Informer().GetIndexer(), indexers.ByLogicalClusterPath, path.String())
+			objs, err := indexers.ByIndex[*schedulingv1alpha1.Location](locationInformer.Informer().GetIndexer(), indexers.ByLogicalClusterPath, path.String())
 			if err != nil {
 				return nil, err
 			}
@@ -91,8 +94,6 @@ func NewController(
 
 		placementLister:  placementInformer.Lister(),
 		placementIndexer: placementInformer.Informer().GetIndexer(),
-
-		commit: committer.NewCommitter[*Placement, Patcher, *PlacementSpec, *PlacementStatus](tmcClient.SchedulingV1alpha1().Placements()),
 	}
 
 	if err := placementInformer.Informer().AddIndexers(cache.Indexers{
@@ -102,9 +103,6 @@ func NewController(
 	}
 
 	indexers.AddIfNotPresentOrDie(locationInformer.Informer().GetIndexer(), cache.Indexers{
-		indexers.ByLogicalClusterPath: indexers.IndexByLogicalClusterPath,
-	})
-	indexers.AddIfNotPresentOrDie(globalLocationInformer.Informer().GetIndexer(), cache.Indexers{
 		indexers.ByLogicalClusterPath: indexers.IndexByLogicalClusterPath,
 	})
 
@@ -158,20 +156,13 @@ func NewController(
 	return c, nil
 }
 
-type Placement = schedulingv1alpha1.Placement
-type PlacementSpec = schedulingv1alpha1.PlacementSpec
-type PlacementStatus = schedulingv1alpha1.PlacementStatus
-type Patcher = schedulingv1alpha1client.PlacementInterface
-type Resource = committer.Resource[*PlacementSpec, *PlacementStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
-
 // controller.
 type controller struct {
 	queue        workqueue.RateLimitingInterface
 	enqueueAfter func(*corev1.Namespace, time.Duration)
 
 	kcpClusterClient kcpclientset.ClusterInterface
-	tmcClient        tmcclientset.ClusterInterface
+	tmcClusterClient tmcclientset.ClusterInterface
 
 	namespaceLister corev1listers.NamespaceClusterLister
 
@@ -179,8 +170,6 @@ type controller struct {
 
 	placementLister  schedulingv1alpha1listers.PlacementClusterLister
 	placementIndexer cache.Indexer
-
-	commit CommitFunc
 }
 
 func (c *controller) enqueuePlacement(obj interface{}) {
@@ -343,12 +332,71 @@ func (c *controller) process(ctx context.Context, key string) error {
 	// Regardless of whether reconcile returned an error or not, always try to patch status if needed. Return the
 	// reconciliation error at the end.
 
-	// If the object being reconciled changed as a result, update it.
-	oldResource := &Resource{ObjectMeta: old.ObjectMeta, Spec: &old.Spec, Status: &old.Status}
-	newResource := &Resource{ObjectMeta: obj.ObjectMeta, Spec: &obj.Spec, Status: &obj.Status}
-	if err := c.commit(ctx, oldResource, newResource); err != nil {
+	if err := c.patchIfNeeded(ctx, old, obj); err != nil {
 		errs = append(errs, err)
 	}
 
 	return utilerrors.NewAggregate(errs)
+}
+
+func (c *controller) patchIfNeeded(ctx context.Context, old, obj *schedulingv1alpha1.Placement) error {
+	specOrObjectMetaChanged := !equality.Semantic.DeepEqual(old.Spec, obj.Spec) || !equality.Semantic.DeepEqual(old.ObjectMeta, obj.ObjectMeta)
+	statusChanged := !equality.Semantic.DeepEqual(old.Status, obj.Status)
+
+	if specOrObjectMetaChanged && statusChanged {
+		panic("Programmer error: spec and status changed in same reconcile iteration")
+	}
+
+	if !specOrObjectMetaChanged && !statusChanged {
+		return nil
+	}
+
+	clusterPlacementForPatch := func(placement *schedulingv1alpha1.Placement) schedulingv1alpha1.Placement {
+		var ret schedulingv1alpha1.Placement
+		if specOrObjectMetaChanged {
+			ret.ObjectMeta = placement.ObjectMeta
+			ret.Spec = placement.Spec
+		} else {
+			ret.Status = placement.Status
+		}
+		return ret
+	}
+
+	clusterName := logicalcluster.From(old)
+	name := old.Name
+
+	oldForPatch := clusterPlacementForPatch(old)
+	// to ensure they appear in the patch as preconditions
+	oldForPatch.UID = ""
+	oldForPatch.ResourceVersion = ""
+
+	oldData, err := json.Marshal(oldForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal old data for Placement %s|%s: %w", clusterName, name, err)
+	}
+
+	newForPatch := clusterPlacementForPatch(obj)
+	// to ensure they appear in the patch as preconditions
+	newForPatch.UID = old.UID
+	newForPatch.ResourceVersion = old.ResourceVersion
+
+	newData, err := json.Marshal(newForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal new data for Placement %s|%s: %w", clusterName, name, err)
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
+	if err != nil {
+		return fmt.Errorf("failed to create patch for Placement %s|%s: %w", clusterName, name, err)
+	}
+
+	// TODO: Check if status changes and patch only status.
+	// https://github.com/kcp-dev/contrib-tmc/issues/1
+
+	_, err = c.tmcClusterClient.Cluster(clusterName.Path()).SchedulingV1alpha1().Placements().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch Placement %s|%s: %w", clusterName, name, err)
+
+	}
+	return err
 }

@@ -41,6 +41,10 @@ import (
 	"time"
 
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/kcp/config/helpers"
+	conditionsv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/util/conditions"
+	kcpscheme "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/scheme"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/martinlindhe/base36"
 	"github.com/stretchr/testify/require"
@@ -60,10 +64,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	workloadv1alpha1 "github.com/kcp-dev/contrib-tmc/apis/workload/v1alpha1"
-	"github.com/kcp-dev/kcp/config/helpers"
-	conditionsv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/util/conditions"
-	kcpscheme "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/scheme"
 )
 
 //go:embed *.csv

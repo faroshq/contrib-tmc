@@ -23,14 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	"github.com/stretchr/testify/require"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apiserver/pkg/authentication/user"
-
 	"github.com/kcp-dev/kcp/pkg/admission/workspace"
 	"github.com/kcp-dev/kcp/pkg/authorization"
 	bootstrappolicy "github.com/kcp-dev/kcp/pkg/authorization/bootstrap"
@@ -41,6 +33,13 @@ import (
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
+	"github.com/kcp-dev/logicalcluster/v3"
+	"github.com/stretchr/testify/require"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apiserver/pkg/authentication/user"
 )
 
 type WorkspaceOption interface {

@@ -44,7 +44,6 @@ func NewOptions(rootDir string) *Options {
 		Generic: *kcpcoreoptions.NewGeneric(rootDir),
 		Extra:   ExtraOptions{},
 	}
-
 	return opts
 }
 
