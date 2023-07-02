@@ -26,8 +26,6 @@ import (
 	crdcmd "github.com/kcp-dev/kcp/pkg/cliplugins/crd/cmd"
 	workspacecmd "github.com/kcp-dev/kcp/pkg/cliplugins/workspace/cmd"
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
-
-	// We extend current kcp commands too
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
