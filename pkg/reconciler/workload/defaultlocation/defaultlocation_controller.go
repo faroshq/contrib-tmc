@@ -53,7 +53,7 @@ const (
 // NewController returns a new controller instance.
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
-	tmcClient tmcclientset.ClusterInterface,
+	tmcClusterClient tmcclientset.ClusterInterface,
 	syncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
 	locationInformer schedulingv1alpha1informers.LocationClusterInformer,
 ) (*controller, error) {
@@ -71,7 +71,7 @@ func NewController(
 		},
 
 		kcpClusterClient: kcpClusterClient,
-		tmcClient:        tmcClient,
+		tmcClusterClient: tmcClusterClient,
 		syncTargetLister: syncTargetInformer.Lister(),
 		locationLister:   locationInformer.Lister(),
 	}
@@ -104,7 +104,7 @@ type controller struct {
 	enqueueAfter func(*apisv1alpha1.APIExport, time.Duration)
 
 	kcpClusterClient kcpclientset.ClusterInterface
-	tmcClient        tmcclientset.ClusterInterface
+	tmcClusterClient tmcclientset.ClusterInterface
 
 	syncTargetLister workloadv1alpha1listers.SyncTargetClusterLister
 	locationLister   schedulingv1alpha1listers.LocationClusterLister
@@ -214,7 +214,7 @@ func (c *controller) process(ctx context.Context, key string) error {
 		}
 		logger = logging.WithObject(logger, location)
 		logger.Info("creating Location")
-		_, err = c.tmcClient.Cluster(clusterName.Path()).SchedulingV1alpha1().Locations().Create(ctx, location, metav1.CreateOptions{})
+		_, err = c.tmcClusterClient.Cluster(clusterName.Path()).SchedulingV1alpha1().Locations().Create(ctx, location, metav1.CreateOptions{})
 		if err != nil && !apierrors.IsAlreadyExists(err) {
 			logger.Error(err, "failed to create Location")
 			return err

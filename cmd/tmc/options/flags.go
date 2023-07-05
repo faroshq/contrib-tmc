@@ -36,5 +36,6 @@ var (
 		"KCP Home Workspaces",
 		"KCP Cache Server",
 		"KCP",
+		"TMC Controllers",
 	}
 )

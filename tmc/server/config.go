@@ -23,7 +23,9 @@ import (
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
 	corevwoptions "github.com/kcp-dev/kcp/pkg/virtual/options"
 
+	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/genericcontrolplane/apis"
 
 	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
 	tmcinformers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions"
@@ -33,14 +35,15 @@ import (
 type Config struct {
 	Options options.CompletedOptions
 
-	Core *coreserver.Config
+	Core          *coreserver.Config
+	GenericConfig *genericapiserver.Config // the config embedded into MiniAggregator, the head of the delegation chain
+	Apis          *apis.Config
 
 	ExtraConfig
 }
 
 type ExtraConfig struct {
-	TmcSharedInformerFactory      tmcinformers.SharedInformerFactory
-	CacheTmcSharedInformerFactory tmcinformers.SharedInformerFactory
+	TmcSharedInformerFactory tmcinformers.SharedInformerFactory
 }
 
 type completedConfig struct {
@@ -76,28 +79,15 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		return nil, err
 	}
 
-	informerConfig := rest.CopyConfig(core.GenericConfig.LoopbackClientConfig)
+	// reuse the kcp IdentityConfig as it does resolution in github.com/kcp-dev/kcp/pkg/server/config.go
+	informerConfig := rest.CopyConfig(core.IdentityConfig)
 	informerConfig.UserAgent = "tmc-informers"
-	informerKcpClient, err := tmcclientset.NewForConfig(informerConfig)
+	informerTmcClient, err := tmcclientset.NewForConfig(informerConfig)
 	if err != nil {
 		return nil, err
 	}
 	tmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
-		informerKcpClient,
-		resyncPeriod,
-	)
-
-	cacheClientConfig, err := core.Options.Cache.Client.RestConfig(rest.CopyConfig(core.GenericConfig.LoopbackClientConfig))
-	if err != nil {
-		return nil, err
-	}
-	cacheKcpClusterClient, err := tmcclientset.NewForConfig(cacheClientConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	cacheTmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
-		cacheKcpClusterClient,
+		informerTmcClient,
 		resyncPeriod,
 	)
 
@@ -111,7 +101,7 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 			virtualcommandoptions.DefaultRootPathPrefix,
 			core.ShardExternalURL,
 			core.CacheKcpSharedInformerFactory,
-			cacheTmcSharedInformerFactory,
+			tmcSharedInformerFactory,
 		)
 		if err != nil {
 			return nil, err
@@ -126,8 +116,7 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		Options: opts,
 		Core:    core,
 		ExtraConfig: ExtraConfig{
-			TmcSharedInformerFactory:      tmcSharedInformerFactory,
-			CacheTmcSharedInformerFactory: cacheTmcSharedInformerFactory,
+			TmcSharedInformerFactory: tmcSharedInformerFactory,
 		},
 	}
 

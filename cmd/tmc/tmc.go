@@ -81,9 +81,18 @@ func main() {
 		}
 	}
 
+	// HACK: We already pass the root directory to the generic options, but we need to
+	// strip it from the command line arguments so that the generic options don't
+	// complain about unknown flags.
+	for i, f := range os.Args {
+		if f == "--root-directory" || strings.HasPrefix(f, "--root-directory=") {
+			os.Args = append(os.Args[:i], os.Args[i+2:]...)
+			break
+		}
+	}
+
 	serverOptions := options.NewOptions(rootDir)
 	serverOptions.Core.GenericControlPlane.Logs.Verbosity = logsapiv1.VerbosityLevel(2)
-
 	startCmd := &cobra.Command{
 		Use:   "start",
 		Short: "Start the control plane process",

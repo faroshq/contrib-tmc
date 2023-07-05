@@ -57,7 +57,7 @@ import (
 )
 
 const (
-	ControllerName  = "kcp-workload-resource-scheduler"
+	ControllerName  = "tmc-workload-resource-scheduler"
 	bySyncTargetKey = ControllerName + "bySyncTargetKey"
 )
 
@@ -65,7 +65,7 @@ const (
 func NewController(
 	dynamicClusterClient kcpdynamic.ClusterInterface,
 	ddsif *informer.DiscoveringDynamicSharedInformerFactory,
-	syncTargetInformer, globalSyncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
+	syncTargetInformer workloadv1alpha1informers.SyncTargetClusterInformer,
 	namespaceInformer kcpcorev1informers.NamespaceClusterInformer,
 	placementInformer schedulingv1alpha1informers.PlacementClusterInformer,
 ) (*Controller, error) {
@@ -99,7 +99,7 @@ func NewController(
 
 		getSyncTargetFromKey: func(syncTargetKey string) (*workloadv1alpha1.SyncTarget, bool, error) {
 			syncTargets, err := indexers.ByIndexWithFallback[*workloadv1alpha1.SyncTarget](syncTargetInformer.Informer().GetIndexer(),
-				globalSyncTargetInformer.Informer().GetIndexer(), bySyncTargetKey, syncTargetKey)
+				syncTargetInformer.Informer().GetIndexer(), bySyncTargetKey, syncTargetKey)
 			if err != nil {
 				return nil, false, err
 			}
@@ -147,17 +147,11 @@ func NewController(
 		bySyncTargetKey: indexBySyncTargetKey,
 	})
 
-	indexers.AddIfNotPresentOrDie(globalSyncTargetInformer.Informer().GetIndexer(), cache.Indexers{
+	indexers.AddIfNotPresentOrDie(syncTargetInformer.Informer().GetIndexer(), cache.Indexers{
 		bySyncTargetKey: indexBySyncTargetKey,
 	})
 
 	_, _ = syncTargetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueSyncTarget(obj)
-		},
-	})
-
-	_, _ = globalSyncTargetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			c.enqueueSyncTarget(obj)
 		},

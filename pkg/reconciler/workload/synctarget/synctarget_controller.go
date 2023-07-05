@@ -209,18 +209,12 @@ func (c *Controller) process(ctx context.Context, key string) error {
 		return err
 	}
 
-	if !reflect.DeepEqual(currentSyncTarget.ObjectMeta, newSyncTarget.ObjectMeta) || !reflect.DeepEqual(currentSyncTarget.Spec, newSyncTarget.Spec) {
+	if !reflect.DeepEqual(currentSyncTarget.ObjectMeta, newSyncTarget.ObjectMeta) ||
+		!reflect.DeepEqual(currentSyncTarget.Spec, newSyncTarget.Spec) ||
+		!reflect.DeepEqual(currentSyncTarget.Status, newSyncTarget.Status) {
 		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget")
 		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
 			logger.Error(err, "failed to patch sync target")
-			return err
-		}
-	}
-
-	if !reflect.DeepEqual(currentSyncTarget.Status, newSyncTarget.Status) {
-		logger.WithValues("patch", string(patchBytes)).V(2).Info("patching SyncTarget status")
-		if _, err := c.tmcClusterClient.Cluster(logicalcluster.From(currentSyncTarget).Path()).WorkloadV1alpha1().SyncTargets().Patch(ctx, currentSyncTarget.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status"); err != nil {
-			logger.Error(err, "failed to patch sync target status")
 			return err
 		}
 	}

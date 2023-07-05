@@ -3,3 +3,4 @@ bin/*
 __debug_bin
 profile.cov
 hack/tools/*
+*.kubeconfig

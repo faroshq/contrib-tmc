@@ -55,7 +55,7 @@ func (o *Syncer) NewVirtualWorkspaces(
 	shardExternalURL func() string,
 	config *rest.Config,
 	cachedKCPInformers kcpinformers.SharedInformerFactory,
-	cachedTMCInformers tmcinformers.SharedInformerFactory,
+	tmcInformers tmcinformers.SharedInformerFactory,
 ) (workspaces []rootapiserver.NamedVirtualWorkspace, err error) {
 	config = rest.AddUserAgent(rest.CopyConfig(config), "syncer-virtual-workspace")
 	kubeClusterClient, err := kcpkubernetesclientset.NewForConfig(config)
@@ -67,5 +67,5 @@ func (o *Syncer) NewVirtualWorkspaces(
 		return nil, err
 	}
 
-	return builder.BuildVirtualWorkspace(rootPathPrefix, shardExternalURL, kubeClusterClient, dynamicClusterClient, cachedKCPInformers, cachedTMCInformers), nil
+	return builder.BuildVirtualWorkspace(rootPathPrefix, shardExternalURL, kubeClusterClient, dynamicClusterClient, cachedKCPInformers, tmcInformers), nil
 }

@@ -18,25 +18,28 @@ package namespace
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	kcpcorev1informers "github.com/kcp-dev/client-go/informers/core/v1"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
 	"github.com/kcp-dev/kcp/pkg/logging"
 	"github.com/kcp-dev/kcp/pkg/reconciler/apis/apiexport"
-	"github.com/kcp-dev/kcp/pkg/reconciler/committer"
 	"github.com/kcp-dev/logicalcluster/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -72,8 +75,7 @@ func NewController(
 		listPlacements: func(clusterName logicalcluster.Name) ([]*schedulingv1alpha1.Placement, error) {
 			return placementInformer.Cluster(clusterName).Lister().List(labels.Everything())
 		},
-		commit: committer.NewCommitter[*Namespace, Patcher, *NamespaceSpec, *NamespaceStatus](kubeClusterClient.CoreV1().Namespaces()),
-		now:    time.Now,
+		now: time.Now,
 	}
 
 	// namespaceBlocklist holds a set of namespaces that should never be synced from kcp to physical clusters.
@@ -114,16 +116,8 @@ type controller struct {
 	listNamespaces func(clusterName logicalcluster.Name) ([]*corev1.Namespace, error)
 	getNamespace   func(clusterName logicalcluster.Name, name string) (*corev1.Namespace, error)
 	listPlacements func(clusterName logicalcluster.Name) ([]*schedulingv1alpha1.Placement, error)
-	commit         CommitFunc
 	now            func() time.Time
 }
-
-type Namespace = corev1.Namespace
-type NamespaceSpec = corev1.NamespaceSpec
-type NamespaceStatus = corev1.NamespaceStatus
-type Patcher = corev1client.NamespaceInterface
-type Resource = committer.Resource[*NamespaceSpec, *NamespaceStatus]
-type CommitFunc = func(ctx context.Context, original, updated *Resource) error
 
 func (c *controller) enqueueNamespace(obj interface{}) {
 	key, err := kcpcache.DeletionHandlingMetaClusterNamespaceKeyFunc(obj)
@@ -242,11 +236,71 @@ func (c *controller) process(ctx context.Context, key string) error {
 		errs = append(errs, err)
 	}
 
-	oldResource := &Resource{ObjectMeta: old.ObjectMeta, Spec: &old.Spec, Status: &old.Status}
-	newResource := &Resource{ObjectMeta: ns.ObjectMeta, Spec: &ns.Spec, Status: &ns.Status}
-	if err := c.commit(ctx, oldResource, newResource); err != nil {
+	if err := c.patchIfNeeded(ctx, old, ns); err != nil {
 		errs = append(errs, err)
 	}
 
 	return utilerrors.NewAggregate(errs)
+}
+
+func (c *controller) patchIfNeeded(ctx context.Context, old, obj *corev1.Namespace) error {
+	specOrObjectMetaChanged := !equality.Semantic.DeepEqual(old.Spec, obj.Spec) || !equality.Semantic.DeepEqual(old.ObjectMeta, obj.ObjectMeta)
+	statusChanged := !equality.Semantic.DeepEqual(old.Status, obj.Status)
+
+	if specOrObjectMetaChanged && statusChanged {
+		panic("Programmer error: spec and status changed in same reconcile iteration")
+	}
+
+	if !specOrObjectMetaChanged && !statusChanged {
+		return nil
+	}
+
+	clusterNamespaceForPatch := func(namespace *corev1.Namespace) corev1.Namespace {
+		var ret corev1.Namespace
+		if specOrObjectMetaChanged {
+			ret.ObjectMeta = namespace.ObjectMeta
+			ret.Spec = namespace.Spec
+		} else {
+			ret.Status = namespace.Status
+		}
+		return ret
+	}
+
+	clusterName := logicalcluster.From(old)
+	name := old.Name
+
+	oldForPatch := clusterNamespaceForPatch(old)
+	// to ensure they appear in the patch as preconditions
+	oldForPatch.UID = ""
+	oldForPatch.ResourceVersion = ""
+
+	oldData, err := json.Marshal(oldForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal old data for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	newForPatch := clusterNamespaceForPatch(obj)
+	// to ensure they appear in the patch as preconditions
+	newForPatch.UID = old.UID
+	newForPatch.ResourceVersion = old.ResourceVersion
+
+	newData, err := json.Marshal(newForPatch)
+	if err != nil {
+		return fmt.Errorf("failed to Marshal new data for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
+	if err != nil {
+		return fmt.Errorf("failed to create patch for SyncTarget %s|%s: %w", clusterName, name, err)
+	}
+
+	// TODO: Check if status changes and patch only status.
+	// https://github.com/kcp-dev/contrib-tmc/issues/1
+
+	_, err = c.kubeClusterClient.Cluster(clusterName.Path()).CoreV1().Namespaces().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch SyncTarget %s|%s: %w", clusterName, name, err)
+
+	}
+	return err
 }

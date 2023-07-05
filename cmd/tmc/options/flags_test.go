@@ -27,7 +27,7 @@ import (
 
 func TestNamedFlagSetOrder(t *testing.T) {
 	fss := flag.NamedFlagSets{}
-	NewOptions(".kcp").AddFlags(&fss)
+	NewOptions(".tmc").AddFlags(&fss)
 
 	names := make([]string, 0, len(fss.FlagSets))
 	for name, fs := range fss.FlagSets {
