@@ -106,11 +106,7 @@ func NewController(
 		},
 
 		getLocation: func(path logicalcluster.Path, name string) (*schedulingv1alpha1.Location, error) {
-			cluster, exit := path.Name()
-			if exit {
-				return nil, errors.NewBadRequest("invalid path")
-			}
-			return locationInformer.Lister().Cluster(cluster).Get(name)
+			return indexers.ByPathAndName[*schedulingv1alpha1.Location](schedulingv1alpha1.Resource("locations"), locationInformer.Informer().GetIndexer(), path, name)
 		},
 
 		placementLister:  placementInformer.Lister(),

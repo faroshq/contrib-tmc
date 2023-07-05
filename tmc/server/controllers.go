@@ -70,7 +70,7 @@ func (s *Server) installWorkloadResourceScheduler(ctx context.Context) error {
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadresource.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadresource.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -107,7 +107,7 @@ func (s *Server) installSyncTargetHeartbeatController(ctx context.Context) error
 
 	return s.Core.AddPostStartHook(postStartHookName(heartbeat.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(heartbeat.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -145,7 +145,7 @@ func (s *Server) installSyncTargetController(ctx context.Context) error {
 	}
 	return s.Core.AddPostStartHook(postStartHookName(synctargetcontroller.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(synctargetcontroller.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -183,7 +183,7 @@ func (s *Server) installSchedulingLocationStatusController(ctx context.Context) 
 
 	return s.Core.AddPostStartHook(postStartHookName(controllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(controllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -225,7 +225,7 @@ func (s *Server) installWorkloadSyncTargetExportController(ctx context.Context) 
 
 	return s.Core.AddPostStartHook(synctargetexports.ControllerName, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(synctargetexports.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -253,7 +253,7 @@ func (s *Server) installWorkloadReplicateClusterRoleControllers(ctx context.Cont
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadreplicateclusterrole.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadreplicateclusterrole.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -281,7 +281,7 @@ func (s *Server) installWorkloadReplicateClusterRoleBindingControllers(ctx conte
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadreplicateclusterrolebinding.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadreplicateclusterrolebinding.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -309,7 +309,7 @@ func (s *Server) installWorkloadReplicateLogicalClusterControllers(ctx context.C
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadreplicatelogicalcluster.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadreplicatelogicalcluster.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -340,7 +340,7 @@ func (s *Server) installWorkloadNamespaceScheduler(ctx context.Context) error {
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadnamespace.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadnamespace.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -381,7 +381,7 @@ func (s *Server) installWorkloadPlacementScheduler(ctx context.Context) error {
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadplacement.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadplacement.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -420,7 +420,7 @@ func (s *Server) installSchedulingPlacementController(ctx context.Context) error
 
 	return s.Core.AddPostStartHook(postStartHookName(schedulingplacement.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(schedulingplacement.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -452,7 +452,7 @@ func (s *Server) installWorkloadAPIExportController(ctx context.Context) error {
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadsapiexport.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadsapiexport.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -490,7 +490,7 @@ func (s *Server) installWorkloadDefaultLocationController(ctx context.Context) e
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadsdefaultlocation.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadsdefaultlocation.ControllerName))
-		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}

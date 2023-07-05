@@ -44,7 +44,6 @@ type Server struct {
 
 	syncedPhase1Ch chan struct{}
 	syncedPhase2Ch chan struct{}
-	syncedPhase3Ch chan struct{}
 }
 
 func NewServer(c CompletedConfig) (*Server, error) {
@@ -60,8 +59,6 @@ func NewServer(c CompletedConfig) (*Server, error) {
 		syncedPhase1Ch: make(chan struct{}),
 		// phase2 - informers started and running
 		syncedPhase2Ch: make(chan struct{}),
-		// phase3 - controllers - workspace created and ready to be used by controllers
-		syncedPhase3Ch: make(chan struct{}),
 	}
 
 	return s, nil
@@ -134,7 +131,7 @@ func (s *Server) Run(ctx context.Context) error {
 	tmcBootstrapHook := "tmcBootstrap"
 	if err := s.Core.AddPostStartHook(tmcBootstrapHook, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := logger.WithValues("postStartHook", tmcBootstrapHook)
-		err := s.WaitForSyncPhase2(hookContext.StopCh)
+		err := s.WaitForSyncPhase1(hookContext.StopCh)
 		if err != nil {
 			logger.Error(err, "failed to wait for sync")
 			return nil
@@ -151,8 +148,6 @@ func (s *Server) Run(ctx context.Context) error {
 				return nil // don't klog.Fatal. This only tmc when context is cancelled.
 			}
 			logger.Info("finished bootstrapping root tmc assets")
-
-			close(s.syncedPhase3Ch)
 		}
 		return nil
 	}); err != nil {
@@ -265,18 +260,6 @@ func (s *Server) WaitForSyncPhase2(stop <-chan struct{}) error {
 	case <-stop:
 		return errors.New("timed out waiting for informers to sync")
 	case <-s.syncedPhase2Ch:
-		return nil
-	}
-}
-
-func (s *Server) WaitForSyncPhase3(stop <-chan struct{}) error {
-	// Wait for shared informer factories to by synced.
-	// factory. Otherwise, informer list calls may go into backoff (before the CRDs are ready) and
-	// take ~10 seconds to succeed.
-	select {
-	case <-stop:
-		return errors.New("timed out waiting for informers to sync")
-	case <-s.syncedPhase3Ch:
 		return nil
 	}
 }

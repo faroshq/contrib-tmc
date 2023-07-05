@@ -85,11 +85,12 @@ func NewController(
 		namespaceLister: namespaceInformer.Lister(),
 
 		listLocationsByPath: func(path logicalcluster.Path) ([]*schedulingv1alpha1.Location, error) {
-			cluster, exists := path.Name()
-			if !exists {
-				return nil, fmt.Errorf("cluster name not found in path %q", path)
+			objs, err := indexers.ByIndex[*schedulingv1alpha1.Location](locationInformer.Informer().GetIndexer(), indexers.ByLogicalClusterPath, path.String())
+			if err != nil {
+				return nil, err
 			}
-			return locationInformer.Lister().Cluster(cluster).List(labels.Everything())
+
+			return objs, nil
 		},
 
 		placementLister:  placementInformer.Lister(),
