@@ -43,7 +43,8 @@ type Config struct {
 }
 
 type ExtraConfig struct {
-	TmcSharedInformerFactory tmcinformers.SharedInformerFactory
+	TmcSharedInformerFactory      tmcinformers.SharedInformerFactory
+	CacheTmcSharedInformerFactory tmcinformers.SharedInformerFactory
 }
 
 type completedConfig struct {
@@ -79,17 +80,39 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		return nil, err
 	}
 
-	// reuse the kcp IdentityConfig as it does resolution in github.com/kcp-dev/kcp/pkg/server/config.go
+	cacheClientConfig, err := core.Options.Cache.Client.RestConfig(rest.CopyConfig(core.GenericConfig.LoopbackClientConfig))
+	if err != nil {
+		return nil, err
+	}
+	cacheTmcClusterClient, err := tmcclientset.NewForConfig(cacheClientConfig)
+	if err != nil {
+		return nil, err
+	}
+	cacheTmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
+		cacheTmcClusterClient,
+		resyncPeriod,
+	)
+
+	c := &Config{
+		Options: opts,
+	}
+
 	informerConfig := rest.CopyConfig(core.IdentityConfig)
 	informerConfig.UserAgent = "tmc-informers"
-	informerTmcClient, err := tmcclientset.NewForConfig(informerConfig)
+	informerTMCClient, err := tmcclientset.NewForConfig(informerConfig)
 	if err != nil {
 		return nil, err
 	}
 	tmcSharedInformerFactory := tmcinformers.NewSharedInformerFactoryWithOptions(
-		informerTmcClient,
+		informerTMCClient,
 		resyncPeriod,
 	)
+
+	c.Core = core
+	c.ExtraConfig = ExtraConfig{
+		TmcSharedInformerFactory:      tmcSharedInformerFactory,
+		CacheTmcSharedInformerFactory: cacheTmcSharedInformerFactory,
+	}
 
 	// add tmc virtual workspaces
 	if opts.Core.Virtual.Enabled {
@@ -101,7 +124,7 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 			virtualcommandoptions.DefaultRootPathPrefix,
 			core.ShardExternalURL,
 			core.CacheKcpSharedInformerFactory,
-			tmcSharedInformerFactory,
+			c.CacheTmcSharedInformerFactory,
 		)
 		if err != nil {
 			return nil, err
@@ -110,14 +133,6 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	c := &Config{
-		Options: opts,
-		Core:    core,
-		ExtraConfig: ExtraConfig{
-			TmcSharedInformerFactory: tmcSharedInformerFactory,
-		},
 	}
 
 	return c, nil
