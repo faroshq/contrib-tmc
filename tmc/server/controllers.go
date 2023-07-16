@@ -31,7 +31,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	tmcclusterclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/contrib-tmc/pkg/reconciler/apiresource"
 	schedulinglocationstatus "github.com/kcp-dev/contrib-tmc/pkg/reconciler/scheduling/location"
 	schedulingplacement "github.com/kcp-dev/contrib-tmc/pkg/reconciler/scheduling/placement"
@@ -60,20 +59,29 @@ func (s *Server) installWorkloadResourceScheduler(ctx context.Context) error {
 		return err
 	}
 
-	resourceScheduler, err := workloadresource.NewController(
-		dynamicClusterClient,
-		s.Core.DiscoveringDynamicSharedInformerFactory,
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Core.KubeSharedInformerFactory.Core().V1().Namespaces(),
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
-	)
-	if err != nil {
-		return err
-	}
+	wg.Add(1)
 
 	return s.Core.AddPostStartHook(postStartHookName(workloadresource.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadresource.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		resourceScheduler, err := workloadresource.NewController(
+			dynamicClusterClient,
+			s.Core.DiscoveringDynamicSharedInformerFactory,
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+			s.KubeSharedInformerFactory.Core().V1().Namespaces(),
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -87,6 +95,8 @@ func (s *Server) installApiResourceController(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, heartbeat.ControllerName)
 
+	wg.Add(1)
+
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
 	if err != nil {
 		return err
@@ -97,25 +107,7 @@ func (s *Server) installApiResourceController(ctx context.Context) error {
 		return err
 	}
 
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
 	crdSharedInformerFactory := kcpapiextensionsinformers.NewSharedInformerFactoryWithOptions(crdClusterClient, resyncPeriod)
-
-	c, err := apiresource.NewController(
-		crdClusterClient,
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.TmcSharedInformerFactory.Apiresource().V1alpha1().NegotiatedAPIResources(),
-		s.TmcSharedInformerFactory.Apiresource().V1alpha1().APIResourceImports(),
-		crdSharedInformerFactory.Apiextensions().V1().CustomResourceDefinitions(),
-	)
-	if err != nil {
-		return err
-	}
 
 	return s.Core.AddPostStartHook(postStartHookName(apiresource.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(apiresource.ControllerName))
@@ -124,8 +116,26 @@ func (s *Server) installApiResourceController(ctx context.Context) error {
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
 
-		crdSharedInformerFactory.Start(ctx.Done())
+		c, err := apiresource.NewController(
+			crdClusterClient,
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.TmcSharedInformerFactory.Apiresource().V1alpha1().NegotiatedAPIResources(),
+			s.TmcSharedInformerFactory.Apiresource().V1alpha1().APIResourceImports(),
+			crdSharedInformerFactory.Apiextensions().V1().CustomResourceDefinitions(),
+		)
+		if err != nil {
+			return err
+		}
 
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		crdSharedInformerFactory.Start(ctx.Done())
 		crdSharedInformerFactory.WaitForCacheSync(ctx.Done())
 
 		go c.Start(ctx, 2)
@@ -137,24 +147,9 @@ func (s *Server) installApiResourceController(ctx context.Context) error {
 func (s *Server) installSyncTargetHeartbeatController(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, heartbeat.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	c, err := heartbeat.NewController(
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Options.Controllers.SyncTargetHeartbeat.HeartbeatThreshold,
-	)
 	if err != nil {
 		return err
 	}
@@ -162,6 +157,23 @@ func (s *Server) installSyncTargetHeartbeatController(ctx context.Context) error
 	return s.Core.AddPostStartHook(postStartHookName(heartbeat.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(heartbeat.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := heartbeat.NewController(
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+			s.Options.Controllers.SyncTargetHeartbeat.HeartbeatThreshold,
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -175,31 +187,34 @@ func (s *Server) installSyncTargetHeartbeatController(ctx context.Context) error
 func (s *Server) installSyncTargetController(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, synctargetcontroller.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	c := synctargetcontroller.NewController(
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Core.KcpSharedInformerFactory.Core().V1alpha1().Shards(),
-		s.Core.CacheKcpSharedInformerFactory.Core().V1alpha1().Shards(),
-	)
-	if err != nil {
-		return err
-	}
 	return s.Core.AddPostStartHook(postStartHookName(synctargetcontroller.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(synctargetcontroller.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c := synctargetcontroller.NewController(
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+			s.KcpSharedInformerFactory.Core().V1alpha1().Shards(),
+			s.CacheKcpSharedInformerFactory.Core().V1alpha1().Shards(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -214,23 +229,8 @@ func (s *Server) installSchedulingLocationStatusController(ctx context.Context) 
 	controllerName := "tmc-scheduling-location-status-controller"
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, controllerName)
+	wg.Add(1)
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	c, err := schedulinglocationstatus.NewController(
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-	)
 	if err != nil {
 		return err
 	}
@@ -238,6 +238,23 @@ func (s *Server) installSchedulingLocationStatusController(ctx context.Context) 
 	return s.Core.AddPostStartHook(postStartHookName(controllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(controllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := schedulinglocationstatus.NewController(
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -251,28 +268,9 @@ func (s *Server) installSchedulingLocationStatusController(ctx context.Context) 
 func (s *Server) installWorkloadSyncTargetExportController(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, heartbeat.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	c, err := synctargetexports.NewController(
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
-		s.Core.CacheKcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
-		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
-		s.Core.CacheKcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
-		s.TmcSharedInformerFactory.Apiresource().V1alpha1().APIResourceImports(),
-	)
 	if err != nil {
 		return err
 	}
@@ -280,6 +278,27 @@ func (s *Server) installWorkloadSyncTargetExportController(ctx context.Context) 
 	return s.Core.AddPostStartHook(synctargetexports.ControllerName, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(synctargetexports.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := synctargetexports.NewController(
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+			s.KcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
+			s.CacheKcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
+			s.KcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
+			s.CacheKcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
+			s.TmcSharedInformerFactory.Apiresource().V1alpha1().APIResourceImports(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -293,21 +312,29 @@ func (s *Server) installWorkloadSyncTargetExportController(ctx context.Context) 
 func (s *Server) installWorkloadReplicateClusterRoleControllers(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, workloadreplicateclusterrole.ControllerName)
+	wg.Add(1)
 
 	kubeClusterClient, err := kcpkubernetesclientset.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 
-	c := workloadreplicateclusterrole.NewController(
-		kubeClusterClient,
-		s.Core.KubeSharedInformerFactory.Rbac().V1().ClusterRoles(),
-		s.Core.KubeSharedInformerFactory.Rbac().V1().ClusterRoleBindings(),
-	)
-
 	return s.Core.AddPostStartHook(postStartHookName(workloadreplicateclusterrole.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadreplicateclusterrole.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c := workloadreplicateclusterrole.NewController(
+			kubeClusterClient,
+			s.KubeSharedInformerFactory.Rbac().V1().ClusterRoles(),
+			s.KubeSharedInformerFactory.Rbac().V1().ClusterRoleBindings(),
+		)
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -321,21 +348,28 @@ func (s *Server) installWorkloadReplicateClusterRoleControllers(ctx context.Cont
 func (s *Server) installWorkloadReplicateClusterRoleBindingControllers(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, workloadreplicateclusterrolebinding.ControllerName)
+	wg.Add(1)
 
 	kubeClusterClient, err := kcpkubernetesclientset.NewForConfig(config)
 	if err != nil {
 		return err
 	}
-
-	c := workloadreplicateclusterrolebinding.NewController(
-		kubeClusterClient,
-		s.Core.KubeSharedInformerFactory.Rbac().V1().ClusterRoleBindings(),
-		s.Core.KubeSharedInformerFactory.Rbac().V1().ClusterRoles(),
-	)
-
 	return s.Core.AddPostStartHook(postStartHookName(workloadreplicateclusterrolebinding.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadreplicateclusterrolebinding.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c := workloadreplicateclusterrolebinding.NewController(
+			kubeClusterClient,
+			s.KubeSharedInformerFactory.Rbac().V1().ClusterRoleBindings(),
+			s.KubeSharedInformerFactory.Rbac().V1().ClusterRoles(),
+		)
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -349,21 +383,29 @@ func (s *Server) installWorkloadReplicateClusterRoleBindingControllers(ctx conte
 func (s *Server) installWorkloadReplicateLogicalClusterControllers(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, workloadreplicatelogicalcluster.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 
-	c := workloadreplicatelogicalcluster.NewController(
-		kcpClusterClient,
-		s.Core.KcpSharedInformerFactory.Core().V1alpha1().LogicalClusters(),
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-	)
-
 	return s.Core.AddPostStartHook(postStartHookName(workloadreplicatelogicalcluster.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadreplicatelogicalcluster.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c := workloadreplicatelogicalcluster.NewController(
+			kcpClusterClient,
+			s.KcpSharedInformerFactory.Core().V1alpha1().LogicalClusters(),
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		)
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -377,17 +419,9 @@ func (s *Server) installWorkloadReplicateLogicalClusterControllers(ctx context.C
 func (s *Server) installWorkloadNamespaceScheduler(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, workloadnamespace.ControllerName)
+	wg.Add(1)
 
 	kubeClusterClient, err := kcpkubernetesclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	c, err := workloadnamespace.NewController(
-		kubeClusterClient,
-		s.Core.KubeSharedInformerFactory.Core().V1().Namespaces(),
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
-	)
 	if err != nil {
 		return err
 	}
@@ -395,6 +429,22 @@ func (s *Server) installWorkloadNamespaceScheduler(ctx context.Context) error {
 	return s.Core.AddPostStartHook(postStartHookName(workloadnamespace.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadnamespace.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := workloadnamespace.NewController(
+			kubeClusterClient,
+			s.KubeSharedInformerFactory.Core().V1().Namespaces(),
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -408,27 +458,9 @@ func (s *Server) installWorkloadNamespaceScheduler(ctx context.Context) error {
 func (s *Server) installWorkloadPlacementScheduler(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, workloadplacement.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	c, err := workloadplacement.NewController(
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.Core.KcpSharedInformerFactory.Core().V1alpha1().LogicalClusters(),
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
-		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIBindings(),
-	)
 	if err != nil {
 		return err
 	}
@@ -436,6 +468,26 @@ func (s *Server) installWorkloadPlacementScheduler(ctx context.Context) error {
 	return s.Core.AddPostStartHook(postStartHookName(workloadplacement.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadplacement.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := workloadplacement.NewController(
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.KcpSharedInformerFactory.Core().V1alpha1().LogicalClusters(),
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+			s.KcpSharedInformerFactory.Apis().V1alpha1().APIBindings(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -449,25 +501,9 @@ func (s *Server) installWorkloadPlacementScheduler(ctx context.Context) error {
 func (s *Server) installSchedulingPlacementController(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, schedulingplacement.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	c, err := schedulingplacement.NewController(
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.Core.KubeSharedInformerFactory.Core().V1().Namespaces(),
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
-	)
 	if err != nil {
 		return err
 	}
@@ -475,6 +511,24 @@ func (s *Server) installSchedulingPlacementController(ctx context.Context) error
 	return s.Core.AddPostStartHook(postStartHookName(schedulingplacement.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(schedulingplacement.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := schedulingplacement.NewController(
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.KubeSharedInformerFactory.Core().V1().Namespaces(),
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Placements(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -487,19 +541,9 @@ func (s *Server) installSchedulingPlacementController(ctx context.Context) error
 func (s *Server) installWorkloadAPIExportController(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, workloadsapiexport.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	c, err := workloadsapiexport.NewController(
-		kcpClusterClient,
-		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
-		s.Core.KcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
-		s.TmcSharedInformerFactory.Apiresource().V1alpha1().NegotiatedAPIResources(),
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-	)
 	if err != nil {
 		return err
 	}
@@ -507,6 +551,24 @@ func (s *Server) installWorkloadAPIExportController(ctx context.Context) error {
 	return s.Core.AddPostStartHook(postStartHookName(workloadsapiexport.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadsapiexport.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := workloadsapiexport.NewController(
+			kcpClusterClient,
+			s.KcpSharedInformerFactory.Apis().V1alpha1().APIExports(),
+			s.KcpSharedInformerFactory.Apis().V1alpha1().APIResourceSchemas(),
+			s.TmcSharedInformerFactory.Apiresource().V1alpha1().NegotiatedAPIResources(),
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
@@ -520,24 +582,9 @@ func (s *Server) installWorkloadAPIExportController(ctx context.Context) error {
 func (s *Server) installWorkloadDefaultLocationController(ctx context.Context) error {
 	config := rest.CopyConfig(s.Core.IdentityConfig)
 	config = rest.AddUserAgent(config, workloadsdefaultlocation.ControllerName)
+	wg.Add(1)
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	cfg := rest.CopyConfig(s.Core.GenericConfig.LoopbackClientConfig)
-	tmcclusterclientset, err := tmcclusterclientset.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	c, err := workloadsdefaultlocation.NewController(
-		kcpClusterClient,
-		tmcclusterclientset,
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
-		s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
-	)
 	if err != nil {
 		return err
 	}
@@ -545,6 +592,23 @@ func (s *Server) installWorkloadDefaultLocationController(ctx context.Context) e
 	return s.Core.AddPostStartHook(postStartHookName(workloadsdefaultlocation.ControllerName), func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := klog.FromContext(ctx).WithValues("postStartHook", postStartHookName(workloadsdefaultlocation.ControllerName))
 		if err := s.WaitForSyncPhase2(hookContext.StopCh); err != nil {
+			logger.Error(err, "failed to finish post-start-hook")
+			return nil // don't klog.Fatal. This only happens when context is cancelled.
+		}
+
+		c, err := workloadsdefaultlocation.NewController(
+			kcpClusterClient,
+			s.TmcClusterClient,
+			s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets(),
+			s.TmcSharedInformerFactory.Scheduling().V1alpha1().Locations(),
+		)
+		if err != nil {
+			return err
+		}
+
+		wg.Done()
+
+		if err := s.WaitForSyncPhase3(hookContext.StopCh); err != nil {
 			logger.Error(err, "failed to finish post-start-hook")
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}

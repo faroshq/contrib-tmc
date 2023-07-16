@@ -65,7 +65,7 @@ func NewController(
 		kcpClusterClient:   kcpClusterClient,
 		tmcClusterClient:   tmcClusterClient,
 		heartbeatThreshold: heartbeatThreshold,
-		commit:             committer.NewCommitter[*SyncTarget, Patcher, *SyncTargetSpec, *SyncTargetStatus](tmcClusterClient.WorkloadV1alpha1().SyncTargets()),
+		commit:             committer.NewCommitter[*SyncTarget, ClusterPatcher, *SyncTargetSpec, *SyncTargetStatus](tmcClusterClient.WorkloadV1alpha1().SyncTargets()),
 		getSyncTarget: func(clusterName logicalcluster.Name, name string) (*workloadv1alpha1.SyncTarget, error) {
 			return syncTargetInformer.Cluster(clusterName).Lister().Get(name)
 		},
@@ -82,7 +82,7 @@ func NewController(
 type SyncTarget = workloadv1alpha1.SyncTarget
 type SyncTargetSpec = workloadv1alpha1.SyncTargetSpec
 type SyncTargetStatus = workloadv1alpha1.SyncTargetStatus
-type Patcher = workloadv1alpha1client.SyncTargetInterface
+type ClusterPatcher = workloadv1alpha1client.SyncTargetInterface
 type Resource = committer.Resource[*SyncTargetSpec, *SyncTargetStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 

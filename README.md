@@ -32,15 +32,15 @@ and extend its functionality to support multi-cluster workload management.
 
 # Create SyncTarget for remote cluster
 
-  kubectl tmc workload sync cluster-1 --syncer-image quay.io/kcp-dev/contrib-tmc/syncer:latest --output-file cluster-1.yaml
-
-# Bind compute resources
-
-  kubectl tmc bind compute root:tmc-ws
+  kubectl tmc workload sync cluster-1 --syncer-image quay.io/faroshq/tmc/syncer:latest --output-file cluster-1.yaml
 
 # Login into child cluster
 
   KUBECONFIG=<pcluster-config> kubectl apply -f "cluster-1.yaml"
+
+# Bind compute resources
+
+  kubectl tmc bind compute root:tmc-ws
 
 # Create a workload on TMC-KCP cluster
 

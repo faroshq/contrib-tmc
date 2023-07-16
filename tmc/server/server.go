@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	_ "net/http/pprof"
+	"sync"
 	"time"
 
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
@@ -34,7 +35,6 @@ import (
 	"github.com/kcp-dev/contrib-tmc/config/root"
 	configrootcompute "github.com/kcp-dev/contrib-tmc/config/rootcompute"
 	configtmc "github.com/kcp-dev/contrib-tmc/config/tmc"
-	"github.com/kcp-dev/contrib-tmc/tmc/server/bootstrap"
 )
 
 const resyncPeriod = 10 * time.Hour
@@ -46,6 +46,7 @@ type Server struct {
 
 	syncedPhase1Ch chan struct{}
 	syncedPhase2Ch chan struct{}
+	syncedPhase3Ch chan struct{}
 }
 
 func NewServer(c CompletedConfig) (*Server, error) {
@@ -57,87 +58,31 @@ func NewServer(c CompletedConfig) (*Server, error) {
 	s := &Server{
 		CompletedConfig: c,
 		Core:            core,
-		// phase1 - crds, apiresourceschemas, workspaces
+		// phase1 - Create api exports and workspace types
 		syncedPhase1Ch: make(chan struct{}),
-		// phase2 - informers started and running
+		// phase2 - Setup informers and clients. At this point controllers can start using TMC clients and informers objects
 		syncedPhase2Ch: make(chan struct{}),
+		// phase3 - Informers stared, can start can start controllers
+		syncedPhase3Ch: make(chan struct{}),
 	}
 
 	return s, nil
 }
 
+// HACK: This is hack to sync controllers startup.
+var wg sync.WaitGroup
+
 func (s *Server) Run(ctx context.Context) error {
 	logger := klog.FromContext(ctx).WithValues("component", "tmc")
 	ctx = klog.NewContext(ctx, logger)
 
-	cacheHookName := "tmc-populate-cache-server"
-	if err := s.Core.AddPostStartHook(cacheHookName, func(hookContext genericapiserver.PostStartHookContext) error {
-		logger := logger.WithValues("postStartHook", cacheHookName)
-
-		err := s.Core.WaitForSync(hookContext.StopCh)
-		if err != nil {
-			logger.Error(err, "failed to wait for sync")
-			return nil
-		}
-
-		if err := bootstrap.Bootstrap(klog.NewContext(goContext(hookContext), logger), s.Core.ApiExtensionsClusterClient); err != nil {
-			logger.Error(err, "failed creating the static CustomResourcesDefinitions")
-			return nil // don't klog.Fatal. This only happens when context is cancelled.
-		}
-		close(s.syncedPhase1Ch)
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	hookName := "tmc-start-informers"
-	if err := s.Core.AddPostStartHook(hookName, func(hookContext genericapiserver.PostStartHookContext) error {
-		logger := logger.WithValues("postStartHook", hookName)
-		ctx = klog.NewContext(ctx, logger)
-
-		err := s.WaitForSyncPhase1(hookContext.StopCh)
-		if err != nil {
-			logger.Error(err, "failed to wait for phase1 sync")
-			return err
-		}
-
-		// Poke the informers to start syncing
-		s.TmcSharedInformerFactory.Workload().V1alpha1().SyncTargets()
-
-		logger.Info("starting tmc informers")
-		s.TmcSharedInformerFactory.Start(hookContext.StopCh)
-
-		for v, synced := range s.TmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
-			if !synced {
-				logger.Error(nil, "Error syncing informer", "informer", v)
-				return fmt.Errorf("failed to sync informer %s", v)
-			}
-			logger.Info("synced informer", "informer", v)
-		}
-
-		logger.Info("synced all TMC informers")
-		close(s.syncedPhase2Ch)
-
-		select {
-		case <-hookContext.StopCh:
-			return nil // context closed, avoid reporting success below
-		default:
-		}
-
-		logger.Info("finished starting tmc informers")
-		return nil
-	}); err != nil {
-		return err
-	}
-
+	// TMC bootstrap order:
+	// 1. Create TMC APIExports and WorkspaceTypes
+	// 2. Setup SA for TMC VWs
+	// 3. Start controllers
 	tmcBootstrapHook := "tmcBootstrap"
 	if err := s.Core.AddPostStartHook(tmcBootstrapHook, func(hookContext genericapiserver.PostStartHookContext) error {
 		logger := logger.WithValues("postStartHook", tmcBootstrapHook)
-		err := s.WaitForSyncPhase1(hookContext.StopCh)
-		if err != nil {
-			logger.Error(err, "failed to wait for sync")
-			return nil
-		}
 		if s.Core.Options.Extra.ShardName == corev1alpha1.RootShard {
 			// the root ws is only present on the root shard
 			logger.Info("starting bootstrapping root tmc assets")
@@ -163,13 +108,140 @@ func (s *Server) Run(ctx context.Context) error {
 				return nil // don't klog.Fatal. This only happens when context is cancelled.
 			}
 			logger.Info("finished bootstrapping root workspace rbac")
+			close(s.syncedPhase1Ch)
+
 		}
 		return nil
 	}); err != nil {
 		return err
 	}
 
-	// TODO(marun) Consider enabling each controller via a separate flag
+	hookName := "tmc-wait-for-clients"
+	if err := s.Core.AddPostStartHook(hookName, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", hookName)
+		ctx = klog.NewContext(ctx, logger)
+
+		err := s.WaitForSyncPhase1(hookContext.StopCh)
+		if err != nil {
+			logger.Error(err, "failed to wait for phase1 sync")
+			return err
+		}
+
+		logger.Info("setup tmc virtual workspaces rest config")
+		err = s.setupRestConfig(ctx)
+		if err != nil {
+			logger.Error(err, "failed to setup rest config")
+			return err
+		}
+
+		logger.Info("setup kcp-admin rest config")
+		err = s.setupKCPAdminRestConfig(ctx)
+		if err != nil {
+			logger.Error(err, "failed to setup kcp-admin rest config")
+			return err
+		}
+
+		// Setup cluster aware clients
+		logger.Info("setup tmc virtual workspaces clients & informers")
+		err = s.setupClusterAwareClient(ctx)
+		if err != nil {
+			logger.Error(err, "failed to setup cluster aware clients")
+			return err
+		}
+
+		close(s.syncedPhase2Ch)
+
+		select {
+		case <-hookContext.StopCh:
+			return nil // context closed, avoid reporting success below
+		default:
+		}
+
+		logger.Info("finished starting tmc informers")
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	hookName = "start-tmc-informers"
+	if err := s.Core.AddPostStartHook(hookName, func(hookContext genericapiserver.PostStartHookContext) error {
+		logger := logger.WithValues("postStartHook", hookName)
+		ctx = klog.NewContext(ctx, logger)
+
+		err := s.WaitForSyncPhase2(hookContext.StopCh)
+		if err != nil {
+			logger.Error(err, "failed to wait for phase1 sync")
+			return err
+		}
+
+		wg.Wait() // wait for all controllers to init
+
+		logger.Info("starting tmc informers")
+		s.TmcSharedInformerFactory.Start(hookContext.StopCh)
+		s.CacheKcpSharedInformerFactory.Start(hookContext.StopCh)
+		s.KcpSharedInformerFactory.Start(hookContext.StopCh)
+		s.CacheKubeSharedInformerFactory.Start(hookContext.StopCh)
+		s.KubeSharedInformerFactory.Start(hookContext.StopCh)
+
+		for v, synced := range s.TmcSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
+			if !synced {
+				logger.Error(nil, "Error syncing informer", "informer", v)
+				return fmt.Errorf("failed to sync informer %s", v)
+			}
+			logger.Info("synced informer", "informer", v)
+		}
+		for v, synced := range s.CacheKcpSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
+			if !synced {
+				logger.Error(nil, "Error syncing informer", "informer", v)
+				return fmt.Errorf("failed to sync informer %s", v)
+			}
+			logger.Info("synced informer", "informer", v)
+		}
+		for v, synced := range s.KcpSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
+			if !synced {
+				logger.Error(nil, "Error syncing informer", "informer", v)
+				return fmt.Errorf("failed to sync informer %s", v)
+			}
+			logger.Info("synced informer", "informer", v)
+		}
+		for v, synced := range s.CacheKubeSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
+			if !synced {
+				logger.Error(nil, "Error syncing informer", "informer", v)
+				return fmt.Errorf("failed to sync informer %s", v)
+			}
+			logger.Info("synced informer", "informer", v)
+		}
+		for v, synced := range s.KubeSharedInformerFactory.WaitForCacheSync(hookContext.StopCh) {
+			if !synced {
+				logger.Error(nil, "Error syncing informer", "informer", v)
+				return fmt.Errorf("failed to sync informer %s", v)
+			}
+			logger.Info("synced informer", "informer", v)
+		}
+
+		logger.Info("synced all TMC informers")
+		close(s.syncedPhase3Ch)
+
+		select {
+		case <-hookContext.StopCh:
+			return nil // context closed, avoid reporting success below
+		default:
+		}
+
+		logger.Info("finished starting tmc informers")
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Components who relies on TMC informers, and are using indexers from KCP.
+	// Due to fact KCP indexers are already started when we bootstrap TMC,
+	// we gonna re-initialize them here using KCP admin.
+
+	// Components NOT using indexers from kcp. So no need change in re-initialization.
+	if err := s.installWorkloadResourceScheduler(ctx); err != nil {
+		return err
+	}
 	if err := s.installApiResourceController(ctx); err != nil {
 		return err
 	}
@@ -180,9 +252,6 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 	if err := s.installSchedulingLocationStatusController(ctx); err != nil {
-		return err
-	}
-	if err := s.installWorkloadResourceScheduler(ctx); err != nil {
 		return err
 	}
 	if err := s.installWorkloadSyncTargetExportController(ctx); err != nil {
@@ -278,6 +347,18 @@ func (s *Server) WaitForSyncPhase2(stop <-chan struct{}) error {
 	case <-stop:
 		return errors.New("timed out waiting for informers to sync")
 	case <-s.syncedPhase2Ch:
+		return nil
+	}
+}
+
+func (s *Server) WaitForSyncPhase3(stop <-chan struct{}) error {
+	// Wait for shared informer factories to by synced.
+	// factory. Otherwise, informer list calls may go into backoff (before the CRDs are ready) and
+	// take ~10 seconds to succeed.
+	select {
+	case <-stop:
+		return errors.New("timed out waiting for informers to sync")
+	case <-s.syncedPhase3Ch:
 		return nil
 	}
 }

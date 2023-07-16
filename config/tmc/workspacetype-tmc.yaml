@@ -9,11 +9,7 @@ spec:
       path: root
   defaultAPIBindings:
   - path: root:tmc
-    export: scheduling.kcp.io
-  - path: root:tmc
-    export: workload.kcp.io
-  - path: root:tmc
-    export: apiresource.kcp.io
+    export: tmc.kcp.io
   defaultChildren:
     types:
     - name: tmc

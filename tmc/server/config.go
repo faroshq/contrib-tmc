@@ -19,6 +19,7 @@ package server
 import (
 	_ "net/http/pprof"
 
+	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
 	virtualcommandoptions "github.com/kcp-dev/kcp/cmd/virtual-workspaces/options"
 	coreserver "github.com/kcp-dev/kcp/pkg/server"
 	corevwoptions "github.com/kcp-dev/kcp/pkg/virtual/options"
@@ -30,6 +31,7 @@ import (
 	tmcclientset "github.com/kcp-dev/contrib-tmc/client/clientset/versioned/cluster"
 	tmcinformers "github.com/kcp-dev/contrib-tmc/client/informers/externalversions"
 	"github.com/kcp-dev/contrib-tmc/tmc/server/options"
+	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 )
 
 type Config struct {
@@ -43,7 +45,16 @@ type Config struct {
 }
 
 type ExtraConfig struct {
-	TmcSharedInformerFactory tmcinformers.SharedInformerFactory
+	// Configured in phase2
+	RestVM           *rest.Config
+	RestKCPAdmin     *rest.Config
+	TmcClusterClient tmcclientset.ClusterInterface
+	// Started in phase3
+	TmcSharedInformerFactory       tmcinformers.SharedInformerFactory
+	KcpSharedInformerFactory       kcpinformers.SharedInformerFactory
+	CacheKcpSharedInformerFactory  kcpinformers.SharedInformerFactory
+	KubeSharedInformerFactory      kcpkubernetesinformers.SharedInformerFactory
+	CacheKubeSharedInformerFactory kcpkubernetesinformers.SharedInformerFactory
 }
 
 type completedConfig struct {
@@ -80,6 +91,7 @@ func NewConfig(opts options.CompletedOptions) (*Config, error) {
 	}
 
 	// reuse the kcp IdentityConfig as it does resolution in github.com/kcp-dev/kcp/pkg/server/config.go
+	// TODO: This is wrong restConfig.
 	informerConfig := rest.CopyConfig(core.IdentityConfig)
 	informerConfig.UserAgent = "tmc-informers"
 	informerTmcClient, err := tmcclientset.NewForConfig(informerConfig)
